@@ -44,7 +44,7 @@ export function migrate(connection: mysql.Connection, config: MigrateConfig): Pr
 export function migrate(connection: mysql2.Connection, config: MigrateConfig): Promise<void>;
 export async function migrate<T>(connection: any, config: MigrateConfig): Promise<void> {
   // Start a transaction
-  await pQuery(connection, 'BEGIN TRANSACTION');
+  await pQuery(connection, 'START TRANSACTION');
   try {
     const primaryKeys = await detectPrimaryKeys(connection, config);
 
