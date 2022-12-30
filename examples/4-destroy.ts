@@ -1,12 +1,4 @@
-import { getConnection } from '../src/lib';
-
-const conn = getConnection('mysql', {
-  host: 'localhost',
-  port: 10002,
-  user: 'root',
-  password: 'root',
-  database: 'soft_delete_test'
-});
+import { conn } from "./shared";
 
 conn.query('DROP TABLE users', (err) => {
   if (err) {

@@ -1,12 +1,5 @@
-import { getConnection, migrate } from '../src/lib';
-
-const conn = getConnection('mysql', {
-  host: 'localhost',
-  port: 10002,
-  user: 'root',
-  password: 'root',
-  database: 'soft_delete_test'
-});
+import { conn } from './shared';
+import { migrate } from '../src/lib';
 
 migrate(conn, {
   schema: 'soft_delete_test',

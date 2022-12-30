@@ -44,7 +44,7 @@ export function migrate(connection: mysql.Connection, config: MigrateConfig): Pr
 export function migrate(connection: mysql2.Connection, config: MigrateConfig): Promise<void>;
 export async function migrate<T>(connection: any, config: MigrateConfig): Promise<void> {
   // Start a transaction
-  await pQuery(connection, 'START TRANSACTION');
+  await pQuery(connection, 'BEGIN TRANSACTION');
   try {
     const primaryKeys = await detectPrimaryKeys(connection, config);
 
@@ -168,18 +168,40 @@ function chunk<T>(array: T[], size: number): T[][] {
   return chunks;
 }
 
-function pQuery<T>(connection: sqlite3.Database, query: string, params?: any[]): Promise<T[]>;
-function pQuery<T>(connection: mysql.Connection, query: string, params?: any[]): Promise<T[]>;
-function pQuery<T>(connection: mysql2.Connection, query: string, params?: any[]): Promise<T[]>;
-function pQuery<T>(connection: any, query: string, params?: any[]): Promise<T[]> {
+export function pQuery<T>(connection: sqlite3.Database, query: string, params?: any[]): Promise<T[]>;
+export function pQuery<T>(connection: mysql.Connection, query: string, params?: any[]): Promise<T[]>;
+export function pQuery<T>(connection: mysql2.Connection, query: string, params?: any[]): Promise<T[]>;
+export function pQuery<T>(connection: any, query: string, params?: any[]): Promise<T[]> {
+  console.log(query, params);
   return new Promise((resolve, reject) => {
-    connection.query(query, params, (err, rows: T[]) => {
-      if (err) {
-        reject(err);
+    if (connection.run) {
+      if (query.toLowerCase().startsWith('select') || query.toLowerCase().startsWith('pragma')) {
+        connection.all(query, params, (err, rows: T[]) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows);
+          }
+        });
       } else {
-        resolve(rows);
+        const stmt = connection.prepare(query);
+        stmt.run(params, (err) => {
+          if (err) {
+            reject(err);
+          }
+          resolve([]);
+        });
+        stmt.finalize();
       }
-    });
+    } else {
+      connection.query(query, params, (err, rows: T[]) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      });
+    }
   });
 }
 
@@ -188,11 +210,22 @@ function sanitizeDate(date: Date): string {
 }
 
 async function detectPrimaryKeys(connection: any, config: MigrateConfig): Promise<string[]> {
-  const primaryKeysQ = `
+  let primaryKeysQ: string;
+  let primaryKeys: { column_name: string }[];
+  if (connection.run) {
+    primaryKeysQ = `
+      PRAGMA table_info(${config.tableName})
+    `;
+    primaryKeys = (await pQuery(connection, primaryKeysQ))
+      .filter((key: any) => key.pk === 1)
+      .map((key: any) => ({ column_name: key.name }));
+  } else {
+    primaryKeysQ = `
     SELECT column_name
     FROM information_schema.key_column_usage
     WHERE table_schema = '${config.schema}' AND table_name = '${config.tableName}' AND constraint_name = 'PRIMARY'
   `;
-  const primaryKeys: { column_name: string }[] = await pQuery(connection, primaryKeysQ);
+    primaryKeys = await pQuery(connection, primaryKeysQ);
+  }
   return primaryKeys.map((key) => key.column_name);
 }
