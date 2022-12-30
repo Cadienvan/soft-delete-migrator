@@ -62,7 +62,7 @@ export async function migrate<T>(connection: any, config: MigrateConfig): Promis
     const deleteQueries: string[] = generateDeleteQueries<T>(chunks, config, primaryKeys);
 
     if (config.filePath) {
-      saveQueriesToFile(filePath, insertQueries, deleteQueries);
+      saveQueriesToFile(config.filePath, insertQueries, deleteQueries);
     }
 
     if (!config.safeExecution) {
@@ -88,10 +88,10 @@ function generateDeleteQueries<T>(chunks: T[][], config: MigrateConfig, primaryK
       `
           DELETE FROM ${config.schema}.${config.tableName}
           WHERE (${primaryKeys.join(', ')}) IN (${chunk
-          .map((row) => {
-            return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')})`;
-          })
-          .join(', ')});`.trim()
+        .map((row) => {
+          return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')})`;
+        })
+        .join(', ')});`.trim()
     );
   }
   return deleteQueries;
@@ -102,17 +102,19 @@ function generateInsertQueries<T>(chunks: T[][], config: MigrateConfig, primaryK
   for (const chunk of chunks) {
     insertQueries.push(
       `
-          INSERT INTO ${config.schema}._${config.tableName} (${primaryKeys.join(', ')}, ${config.softDeleteColumn}, data)
+          INSERT INTO ${config.schema}._${config.tableName} (${primaryKeys.join(', ')}, ${
+        config.softDeleteColumn
+      }, data)
           VALUES ${chunk
-          .map((row) => {
-            const data = Object.assign({}, row);
-            primaryKeys.forEach((key) => delete data[key]);
-            delete data[config.softDeleteColumn];
-            return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')}, '${sanitizeDate(
-              row[config.softDeleteColumn]
-            )}', '${JSON.stringify(data)}')`;
-          })
-          .join(', ')};`.trim()
+            .map((row) => {
+              const data = Object.assign({}, row);
+              primaryKeys.forEach((key) => delete data[key]);
+              delete data[config.softDeleteColumn];
+              return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')}, '${sanitizeDate(
+                row[config.softDeleteColumn]
+              )}', '${JSON.stringify(data)}')`;
+            })
+            .join(', ')};`.trim()
     );
   }
   return insertQueries;

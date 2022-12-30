@@ -5,7 +5,7 @@ const conn = getConnection('mysql', {
   port: 10002,
   user: 'root',
   password: 'root',
-  database: 'app'
+  database: 'soft_delete_test'
 });
 
 // Randomly update 1000 rows in the users table to be soft deleted
@@ -16,7 +16,7 @@ for (let i = 0; i < 100; i++) {
   const randomId = Math.floor(Math.random() * 5000);
   promises.push(
     new Promise((resolve) => {
-      conn.query('UPDATE soft_delete_test.users SET deleted_at = ? WHERE id = ?', [date, randomId], (err) => {
+      conn.query('UPDATE users SET deleted_at = ? WHERE id = ?', [date, randomId], (err) => {
         if (err) {
           console.error(err);
         }
@@ -29,6 +29,7 @@ for (let i = 0; i < 100; i++) {
 Promise.all(promises)
   .then(() => {
     console.log('done');
+    process.exit(0);
   })
   .catch((err) => {
     console.error(err);

@@ -5,7 +5,7 @@ const conn = getConnection('mysql', {
   port: 10002,
   user: 'root',
   password: 'root',
-  database: 'app'
+  database: 'soft_delete_test'
 });
 
 // Chunk an array into chunks of a given size
@@ -16,7 +16,7 @@ function chunk<T>(array: T[], size: number): T[][] {
   }
   return chunks;
 }
-conn.query('TRUNCATE TABLE soft_delete_test.users', (err) => {
+conn.query('TRUNCATE TABLE users', (err) => {
   if (err) {
     console.error(err);
     return;
@@ -36,7 +36,7 @@ conn.query('TRUNCATE TABLE soft_delete_test.users', (err) => {
     promises.push(
       new Promise((resolve) => {
         conn.query(
-          'INSERT INTO soft_delete_test.users (id, company_id, firstName, lastName, deleted_at) VALUES ?',
+          'INSERT INTO users (id, company_id, firstName, lastName, deleted_at) VALUES ?',
           [chunk],
           (err) => {
             if (err) {
@@ -59,6 +59,7 @@ conn.query('TRUNCATE TABLE soft_delete_test.users', (err) => {
   Promise.all(promises)
     .then(() => {
       console.log('done');
+      process.exit(0);
     })
     .catch((err) => {
       console.error(err);

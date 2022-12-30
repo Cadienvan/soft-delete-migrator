@@ -5,23 +5,23 @@ const conn = getConnection('mysql', {
   port: 10002,
   user: 'root',
   password: 'root',
-  database: 'app'
+  database: 'soft_delete_test'
 });
 
 migrate(conn, {
   schema: 'soft_delete_test',
   tableName: 'users',
-  primaryKey: ['id', 'company_id'],
   softDeleteColumn: 'deleted_at',
   migrateCondition: 'deleted_at < ?',
   migrateConditionParams: ['2022-01-01'],
   limit: 500,
   chunkSize: 10,
   filePath: './examples/soft-delete-test.sql',
-  safeExecution: true
+  safeExecution: false
 })
   .then(() => {
     console.log('done');
+    process.exit(0);
   })
   .catch((err) => {
     console.error(err);
