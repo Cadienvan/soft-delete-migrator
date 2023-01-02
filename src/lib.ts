@@ -10,7 +10,8 @@ import {
 import * as sqlite3 from 'sqlite3';
 import * as mysql from 'mysql';
 import * as mysql2 from 'mysql2';
-import * as fs from 'fs';
+import * as fsPromises from 'fs/promises';
+
 import {
   isSqlite,
   chunk,
@@ -61,7 +62,9 @@ export async function migrate<T>(
 ): Promise<void> {
   const config: MigrateConfig = {
     ...defaultMigrateConfig,
-    ..._config
+    ..._config,
+    slaveSchema: _config.slaveSchema || _config.schema || defaultMigrateConfig.schema,
+    slaveTableName: _config.slaveTableName || `_${_config.tableName}`
   };
 
   await beginTransaction(masterConnection, slaveConnection);
@@ -81,9 +84,9 @@ export async function migrate<T>(
     const insertQueries: string[] = generateInsertQueries<T>(chunks, config, primaryKeys, slaveConnection);
     const deleteQueries: string[] = generateDeleteQueries<T>(chunks, config, primaryKeys, masterConnection);
 
-    if (config.filePath) {
+    if (config.filePaths) {
       try {
-        saveQueriesToFile(config.filePath, insertQueries, deleteQueries, masterConnection);
+        saveQueriesToFile(config.filePaths, insertQueries, deleteQueries, masterConnection, slaveConnection);
       } catch (err) {
         console.error('Could not save queries to file', err);
       }
@@ -300,59 +303,73 @@ async function detectMysqlColumnDefinitions(connection: any, config: MigrateConf
   return columnDefinitions;
 }
 
-function saveQueriesToFile(filePath: string, insertQueries: string[], deleteQueries: string[], connection: any) {
-  // If file exists, delete it
-  if (fs.existsSync(filePath)) {
-    fs.unlink(filePath, (err) => {
-      if (err) {
-        console.error('Error deleting file', err);
-      }
-      let beginTransactionCommand = 'START TRANSACTION;';
-      if (isSqlite(connection)) beginTransactionCommand = 'BEGIN TRANSACTION;';
+async function saveQueriesToFile(
+  filePaths: string[],
+  insertQueries: string[],
+  deleteQueries: string[],
+  masterConnection: SupportedConnection,
+  slaveConnection: SupportedConnection
+) {
+  // If files exists, delete them
+  await fsPromises.unlink(filePaths[0]);
+  await fsPromises.unlink(filePaths[1]);
+  let beginTransactionCommand = 'START TRANSACTION;';
+  if (isSqlite(masterConnection)) beginTransactionCommand = 'BEGIN TRANSACTION;';
 
-      // Write to file using streams. This is much faster than using fs.appendFileSync
-      // which is synchronous and will block the event loop.
-      const stream = fs.createWriteStream(filePath, { flags: 'w' });
-      stream.write('-- Soft delete migration\n');
-      stream.write('-- Generated at ' + new Date().toISOString() + '\n');
-      stream.write('--\n');
-      stream.write('-- This script will move all rows that have been soft deleted and move them into a new table.\n');
-      stream.write('--\n');
-      stream.write(
-        '-- To run this script, copy the contents of this file into a new file and run it against your database.\n'
-      );
-      stream.write('--\n');
-      stream.write('-- This script will not delete any data. It will only move it.\n');
-      stream.write('--\n');
-      stream.write('--\n');
-      stream.write('--\n');
-      stream.write('\n');
-      stream.write('\n');
-      stream.write('\n');
-      stream.write('-- Begin transaction\n');
-      stream.write(`${beginTransactionCommand}\n`);
-      stream.write('\n');
-      stream.write('-- Insert all rows that have been soft deleted into a new table\n');
-      stream.write('\n');
-      for (const insertQuery of insertQueries) {
-        stream.write(insertQuery);
-        stream.write(';\n');
-      }
-      stream.write('\n');
-      stream.write('\n');
-      stream.write('\n');
-      stream.write('-- Delete all rows that have been soft deleted from the original table\n');
-      stream.write('\n');
-      for (const deleteQuery of deleteQueries) {
-        stream.write(deleteQuery);
-        stream.write(';\n');
-      }
-      stream.write('\n');
-      stream.write('\n');
-      stream.write('\n');
-      stream.write('-- Commit transaction\n');
-      stream.write('COMMIT;\n');
-      stream.end();
-    });
+  let masterFileContent = ``;
+  let slaveFileContent = ``;
+
+  masterFileContent += '-- Soft delete migration\n';
+  masterFileContent += '-- Generated at ' + new Date().toISOString() + '\n';
+  masterFileContent += '--\n';
+  masterFileContent +=
+    '-- This script will move all rows that have been soft deleted and move them into a new table.\n';
+  masterFileContent += '--\n';
+  masterFileContent +=
+    '-- To run this script, copy the contents of this file into a new file and run it against your database.\n';
+  masterFileContent += '--\n';
+  masterFileContent += '-- This script will not delete any data. It will only move it.\n';
+  masterFileContent += '--\n';
+  masterFileContent += '--\n';
+  masterFileContent += '--\n';
+  masterFileContent += '\n';
+  masterFileContent += '\n';
+  masterFileContent += '\n';
+  masterFileContent += '-- Begin transaction\n';
+  masterFileContent += `${beginTransactionCommand}\n`;
+  masterFileContent += '\n';
+
+  // The two files will be identical till this point.
+  slaveFileContent = masterFileContent;
+
+  slaveFileContent += '-- Insert all rows that have been soft deleted into a new table\n';
+  slaveFileContent += '\n';
+  for (const insertQuery of insertQueries) {
+    slaveFileContent += insertQuery;
+    slaveFileContent += ';\n';
   }
+  slaveFileContent += '\n';
+  slaveFileContent += '\n';
+  slaveFileContent += '\n';
+
+  masterFileContent += '-- Delete all rows that have been soft deleted from the original table\n';
+  masterFileContent += '\n';
+  for (const deleteQuery of deleteQueries) {
+    masterFileContent += deleteQuery;
+    masterFileContent += ';\n';
+  }
+  masterFileContent += '\n';
+  masterFileContent += '\n';
+  masterFileContent += '\n';
+
+  masterFileContent += '-- Commit transaction\n';
+  masterFileContent += 'COMMIT;\n';
+  masterFileContent += '\n';
+
+  slaveFileContent += '-- Commit transaction\n';
+  slaveFileContent += 'COMMIT;\n';
+  slaveFileContent += '\n';
+
+  await fsPromises.writeFile(filePaths[0], masterFileContent);
+  await fsPromises.writeFile(filePaths[1], slaveFileContent);
 }

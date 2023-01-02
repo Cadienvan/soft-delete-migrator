@@ -28,8 +28,10 @@ export type MigrateConfig = {
   migrateConditionParams: any[];
   limit: number;
   chunkSize: number;
-  filePath?: string;
-  safeExecution?: boolean;
+  filePaths?: string[];
+  safeExecution: boolean;
+  slaveSchema?: string;
+  slaveTableName?: string;
 };
 
 export type InputMigrateConfig = {
@@ -40,6 +42,8 @@ export type InputMigrateConfig = {
   migrateConditionParams?: any[];
   limit?: number;
   chunkSize?: number;
-  filePath?: string;
+  filePaths?: string[];
   safeExecution?: boolean;
+  slaveSchema?: string;
+  slaveTableName?: string;
 };

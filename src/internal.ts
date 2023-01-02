@@ -1,6 +1,11 @@
-import { MigrateConfig } from "./models";
+import { MigrateConfig } from './models';
 
-export function generateDeleteQueries<T>(chunks: T[][], config: MigrateConfig, primaryKeys: string[], connection: any): string[] {
+export function generateDeleteQueries<T>(
+  chunks: T[][],
+  config: MigrateConfig,
+  primaryKeys: string[],
+  connection: any
+): string[] {
   const deleteQueries: string[] = [];
   for (const chunk of chunks) {
     deleteQueries.push(
@@ -16,7 +21,12 @@ export function generateDeleteQueries<T>(chunks: T[][], config: MigrateConfig, p
   return deleteQueries;
 }
 
-export function generateInsertQueries<T>(chunks: T[][], config: MigrateConfig, primaryKeys: string[], connection: any): string[] {
+export function generateInsertQueries<T>(
+  chunks: T[][],
+  config: MigrateConfig,
+  primaryKeys: string[],
+  connection: any
+): string[] {
   const insertQueries: string[] = [];
   for (const chunk of chunks) {
     insertQueries.push(
@@ -61,5 +71,5 @@ export function getTableName(connection: any, config: MigrateConfig): string {
 }
 
 export function getNewTableName(connection: any, config: MigrateConfig): string {
-  return isSqlite(connection) ? `_${config.tableName}` : `${config.schema}._${config.tableName}`;
+  return isSqlite(connection) ? `_${config.tableName}` : `${config.slaveSchema}._${config.slaveTableName}`;
 }
