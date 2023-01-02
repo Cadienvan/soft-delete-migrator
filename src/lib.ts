@@ -122,10 +122,12 @@ export async function migrate<T>(
 }
 
 async function rollbackTransaction(masterConnection: any, slaveConnection: any) {
+  if (masterConnection === slaveConnection) return pQuery(masterConnection, 'ROLLBACK');
   return Promise.all([pQuery(masterConnection, 'ROLLBACK'), pQuery(slaveConnection, 'ROLLBACK')]);
 }
 
 async function commitTransaction(masterConnection: any, slaveConnection: any) {
+  if (masterConnection === slaveConnection) return pQuery(masterConnection, 'COMMIT');
   return Promise.all([pQuery(masterConnection, 'COMMIT'), pQuery(slaveConnection, 'COMMIT')]);
 }
 
@@ -133,8 +135,10 @@ async function beginTransaction(masterConnection: any, slaveConnection: any) {
   const promises: any[] = [];
   if (isSqlite(masterConnection)) promises.push(pQuery(masterConnection, 'BEGIN TRANSACTION'));
   else promises.push(pQuery(masterConnection, 'START TRANSACTION'));
-  if (isSqlite(slaveConnection)) promises.push(pQuery(slaveConnection, 'BEGIN TRANSACTION'));
-  else promises.push(pQuery(slaveConnection, 'START TRANSACTION'));
+  if (masterConnection !== slaveConnection) {
+    if (isSqlite(slaveConnection)) promises.push(pQuery(slaveConnection, 'BEGIN TRANSACTION'));
+    else promises.push(pQuery(slaveConnection, 'START TRANSACTION'));
+  }
   return Promise.all(promises);
 }
 
