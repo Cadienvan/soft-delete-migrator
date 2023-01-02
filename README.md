@@ -26,7 +26,9 @@ npm test
 
 # ToDo
 
+- [ ] Move console logs and errors to a logger passed as a parameter.
 - [ ] saveQueriesToFile - Allow two different files to be saved depending on connections.
+- [ ] Events
 - [ ] Documentation
 - [ ] Tests
 - [ ] Integrity mechanism to check if primary keys exist both in master and slave table.
