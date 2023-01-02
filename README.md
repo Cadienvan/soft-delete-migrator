@@ -26,6 +26,7 @@ npm test
 
 # ToDo
 
+- [ ] saveQueriesToFile - Allow two different files to be saved depending on connections.
 - [ ] Documentation
 - [ ] Tests
 - [ ] Integrity mechanism to check if primary keys exist both in master and slave table.

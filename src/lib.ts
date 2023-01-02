@@ -92,9 +92,11 @@ export async function migrate<T>(
       await Promise.all(deleteQueries.map((query) => pQuery(connection, query)));
     }
 
+    await pQuery(connection, 'COMMIT');
     await pQuery(migrationConnection, 'COMMIT');
     return;
   } catch (err) {
+    await pQuery(connection, 'ROLLBACK');
     await pQuery(migrationConnection, 'ROLLBACK');
     throw err;
   }
