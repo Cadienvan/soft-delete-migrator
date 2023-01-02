@@ -26,13 +26,7 @@ npm test
 
 # ToDo
 
-- [ ] Move console logs and errors to a logger passed as a parameter.
-- [x] saveQueriesToFile - Allow two different files to be saved depending on connections.
-- [x] Events
 - [ ] Documentation
 - [ ] Tests
 - [ ] Integrity mechanism to check if primary keys exist both in master and slave table.
-- [x] Allow slave table name to be defined programmatically.
 - [ ] Explain why it can't be done: export function getConnection(client: 'mysql', config: typeof mysql.Connection.constructor): mysql.Connection; (Because sqlite3 and mysql2 do not expose constructors)
-- [x] Sqlite currently missing primary keys in newly created table
-- [x] Allow slave table to be created in a different connection (Can't creat MysQL table using SELECT FROM anymore)
