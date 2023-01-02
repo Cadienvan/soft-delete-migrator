@@ -1,4 +1,9 @@
+import * as sqlite3 from 'sqlite3';
+import * as mysql from 'mysql';
+import * as mysql2 from 'mysql2';
+
 export type SupportedClient = 'sqlite3' | 'mysql' | 'mysql2';
+export type SupportedConnection = sqlite3.Database | mysql.Connection | mysql2.Connection;
 
 // Create a type for each supported client
 export type Sqlite3Config = {

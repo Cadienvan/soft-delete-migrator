@@ -1,4 +1,11 @@
-import { MigrateConfig, Mysql2Config, MysqlConfig, Sqlite3Config, SupportedClient } from './models';
+import {
+  MigrateConfig,
+  Mysql2Config,
+  MysqlConfig,
+  Sqlite3Config,
+  SupportedClient,
+  SupportedConnection
+} from './models';
 import * as sqlite3 from 'sqlite3';
 import * as mysql from 'mysql';
 import * as mysql2 from 'mysql2';
@@ -47,12 +54,15 @@ export function closeConnection(client: SupportedClient, connection: any): void 
   }
 }
 
-export function migrate(connection: sqlite3.Database, config: MigrateConfig): Promise<void>;
-export function migrate(connection: mysql.Connection, config: MigrateConfig): Promise<void>;
-export function migrate(connection: mysql2.Connection, config: MigrateConfig): Promise<void>;
-export async function migrate<T>(connection: any, config: MigrateConfig): Promise<void> {
+export async function migrate<T>(
+  connection: SupportedConnection,
+  config: MigrateConfig,
+  migrationConnection: SupportedConnection = connection
+): Promise<void> {
   if (isSqlite(connection)) await pQuery(connection, 'BEGIN TRANSACTION');
   else await pQuery(connection, 'START TRANSACTION');
+  if (isSqlite(migrationConnection)) await pQuery(migrationConnection, 'BEGIN TRANSACTION');
+  else await pQuery(migrationConnection, 'START TRANSACTION');
 
   try {
     const rowsToMove: T[] = await getRowsToMove<T>(config, connection);
@@ -62,11 +72,11 @@ export async function migrate<T>(connection: any, config: MigrateConfig): Promis
 
     const primaryKeys = await detectPrimaryKeys(connection, config);
 
-    await generateTableIfNecessary(config, connection, primaryKeys);
+    await generateTableIfNecessary(config, connection, migrationConnection, primaryKeys);
 
     const chunks = chunk(rowsToMove, config.chunkSize);
 
-    const insertQueries: string[] = generateInsertQueries<T>(chunks, config, primaryKeys, connection);
+    const insertQueries: string[] = generateInsertQueries<T>(chunks, config, primaryKeys, migrationConnection);
     const deleteQueries: string[] = generateDeleteQueries<T>(chunks, config, primaryKeys, connection);
 
     if (config.filePath) {
@@ -78,14 +88,14 @@ export async function migrate<T>(connection: any, config: MigrateConfig): Promis
     }
 
     if (!config.safeExecution) {
-      await Promise.all(insertQueries.map((query) => pQuery(connection, query)));
+      await Promise.all(insertQueries.map((query) => pQuery(migrationConnection, query)));
       await Promise.all(deleteQueries.map((query) => pQuery(connection, query)));
     }
 
-    await pQuery(connection, 'COMMIT');
+    await pQuery(migrationConnection, 'COMMIT');
     return;
   } catch (err) {
-    await pQuery(connection, 'ROLLBACK');
+    await pQuery(migrationConnection, 'ROLLBACK');
     throw err;
   }
 }
@@ -102,11 +112,16 @@ export function pQuery<T>(connection: any, query: string, params?: any[]): Promi
   }
 }
 
-async function generateTableIfNecessary(config: MigrateConfig, connection: any, primaryKeys: string[]) {
+async function generateTableIfNecessary(
+  config: MigrateConfig,
+  connection: any,
+  migrationConnection: any,
+  primaryKeys: string[]
+) {
   if (isSqlite(connection)) {
-    await generateTableIfNecessarySqlite(config, connection, primaryKeys);
+    await generateTableIfNecessarySqlite(config, connection, migrationConnection, primaryKeys);
   } else {
-    await generateTableIfNecessaryMysql(config, connection, primaryKeys);
+    await generateTableIfNecessaryMysql(config, connection, migrationConnection, primaryKeys);
   }
 }
 
@@ -128,25 +143,35 @@ async function tableExists(connection: any, config: MigrateConfig) {
   return tableExists[0]['cnt'] > 0;
 }
 
-async function generateTableIfNecessarySqlite(config: MigrateConfig, connection: any, primaryKeys: string[]) {
-  if (!(await tableExists(connection, config))) {
+async function generateTableIfNecessarySqlite(
+  config: MigrateConfig,
+  connection: any,
+  migrationConnection: any,
+  primaryKeys: string[]
+) {
+  if (!(await tableExists(migrationConnection, config))) {
     const columns = await detectSqliteColumnDefinitions(connection, config);
     const columnsDefinition = columns
       .filter((c) => primaryKeys.indexOf(c.name) !== -1)
       .map((c) => `${c.name} ${c.type} ${c.notnull ? 'NOT NULL' : ''} ${c.dflt_value ? `DEFAULT ${c.dflt_value}` : ''}`)
       .join(', ');
     const createTableQ = `
-    CREATE TABLE ${getNewTableName(connection, config)} (
+    CREATE TABLE ${getNewTableName(migrationConnection, config)} (
       ${columnsDefinition},
       ${config.softDeleteColumn} INTEGER,
       data JSON NULL
     )`;
-    await pQuery(connection, createTableQ);
+    await pQuery(migrationConnection, createTableQ);
   }
 }
 
-async function generateTableIfNecessaryMysql(config: MigrateConfig, connection: any, primaryKeys: string[]) {
-  if (!(await tableExists(connection, config))) {
+async function generateTableIfNecessaryMysql(
+  config: MigrateConfig,
+  connection: any,
+  migrationConnection: any,
+  primaryKeys: string[]
+) {
+  if (!(await tableExists(migrationConnection, config))) {
     const columns = await detectMysqlColumnDefinitions(connection, config);
     const columnsDefinition = columns
       .filter((c) => primaryKeys.indexOf(c.column_name) !== -1)
@@ -158,13 +183,13 @@ async function generateTableIfNecessaryMysql(config: MigrateConfig, connection: 
       )
       .join(', ');
     const createTableQ = `
-          CREATE TABLE ${getNewTableName(connection, config)} (
+          CREATE TABLE ${getNewTableName(migrationConnection, config)} (
             ${columnsDefinition},
             ${config.softDeleteColumn} DATETIME,
             data JSON NULL
           )
         `;
-    await pQuery(connection, createTableQ);
+    await pQuery(migrationConnection, createTableQ);
   }
 }
 

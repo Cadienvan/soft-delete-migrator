@@ -1,4 +1,4 @@
-import { conn } from './shared';
+import { conn, conn2 } from './shared';
 import { migrate } from '../src/lib';
 
 migrate(conn, {
@@ -11,7 +11,7 @@ migrate(conn, {
   chunkSize: 10,
   filePath: './examples/soft-delete-test.sql',
   safeExecution: false
-})
+}, conn2)
   .then(() => {
     console.log('done');
     process.exit(0);

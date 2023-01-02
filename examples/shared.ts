@@ -11,3 +11,7 @@ import { getConnection } from '../src/lib';
 export const conn = getConnection('sqlite3', {
   filename: './examples/soft-delete-test.db'
 });
+
+export const conn2 = getConnection('sqlite3', {
+  filename: './examples/soft-delete-test2.db'
+});
