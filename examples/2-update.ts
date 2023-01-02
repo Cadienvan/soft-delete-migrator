@@ -1,5 +1,5 @@
-import { conn } from "./shared";
-import { pQuery } from '../src/lib';
+import { conn, pQuery } from './shared';
+
 
 // Randomly update 1000 rows in the users table to be soft deleted
 // The deleted_at column is set to a random date between 2021-01-01 and 2022-06-30

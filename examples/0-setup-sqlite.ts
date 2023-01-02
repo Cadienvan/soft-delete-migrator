@@ -1,5 +1,5 @@
-import { conn } from './shared';
-import { pQuery } from '../src/lib';
+import { conn, pQuery } from './shared';
+
 
 (async () => {
   // Create a users table in sqlite containing id, firstName, lastName, deleted_at, and company_id.

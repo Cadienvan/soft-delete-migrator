@@ -1,5 +1,4 @@
-import { conn } from './shared';
-import { pQuery } from '../src/lib';
+import { conn, pQuery } from './shared';
 
 (async () => {
   await pQuery(

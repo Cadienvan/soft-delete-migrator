@@ -1,5 +1,5 @@
-import { conn } from './shared';
-import { pQuery } from '../src/lib';
+import { conn, pQuery } from './shared';
+
 
 // Chunk an array into chunks of a given size
 function chunk<T>(array: T[], size: number): T[][] {

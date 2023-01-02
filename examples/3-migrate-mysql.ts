@@ -1,5 +1,5 @@
-import { conn } from './shared';
-import { migrate } from '../src/lib';
+import { conn, pQuery } from './shared';
+
 
 migrate(conn, {
   schema: 'soft_delete_test',
