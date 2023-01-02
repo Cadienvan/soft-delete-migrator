@@ -26,7 +26,7 @@ npm test
 
 # ToDo
 
+- [ ] Try to understand if schema can be removed. Maybe tell dev to specify it or take from connection?
 - [ ] Documentation
-- [ ] Tests
 - [ ] Integrity mechanism to check if primary keys exist both in master and slave table.
 - [ ] Explain why it can't be done: export function getConnection(client: 'mysql', config: typeof mysql.Connection.constructor): mysql.Connection; (Because sqlite3 and mysql2 do not expose constructors)
