@@ -64,6 +64,12 @@
   },
   "license": "MIT",
   "author": "Michael Di Prisco <cadienvan@gmail.com>",
+  "contributors": [
+    {
+      "name": "Andrea Bettini",
+      "url": "https://github.com/abettini"
+    }
+  ],
   "keywords": [
     "npm",
     "package",
