@@ -1,5 +1,5 @@
-import { conn, pQuery } from './shared';
-
+import { conn } from './shared';
+import { migrate } from '../src/lib';
 
 migrate(conn, {
   schema: 'soft_delete_test',
@@ -9,7 +9,7 @@ migrate(conn, {
   migrateConditionParams: ['2022-01-01'],
   limit: 500,
   chunkSize: 10,
-  filePath: './examples/soft-delete-test.sql',
+  filePaths: ['./examples/soft-delete-test-master-mysql.sql', './examples/soft-delete-test-slave-mysql.sql'],
   safeExecution: false
 })
   .then(() => {
