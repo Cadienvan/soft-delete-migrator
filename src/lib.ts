@@ -64,10 +64,7 @@ export async function migrate<T>(
     ..._config
   };
 
-  if (isSqlite(masterConnection)) await pQuery(masterConnection, 'BEGIN TRANSACTION');
-  else await pQuery(masterConnection, 'START TRANSACTION');
-  if (isSqlite(slaveConnection)) await pQuery(slaveConnection, 'BEGIN TRANSACTION');
-  else await pQuery(slaveConnection, 'START TRANSACTION');
+  await beginTransaction(masterConnection, slaveConnection);
 
   try {
     const rowsToMove: T[] = await getRowsToMove<T>(config, masterConnection);
@@ -97,14 +94,29 @@ export async function migrate<T>(
       await Promise.all(deleteQueries.map((query) => pQuery(masterConnection, query)));
     }
 
-    await pQuery(masterConnection, 'COMMIT');
-    await pQuery(slaveConnection, 'COMMIT');
+    await commitTransaction(masterConnection, slaveConnection);
     return;
   } catch (err) {
-    await pQuery(masterConnection, 'ROLLBACK');
-    await pQuery(slaveConnection, 'ROLLBACK');
+    await rollbackTransaction(masterConnection, slaveConnection);
     throw err;
   }
+}
+
+async function rollbackTransaction(masterConnection: any, slaveConnection: any) {
+  return Promise.all([pQuery(masterConnection, 'ROLLBACK'), pQuery(slaveConnection, 'ROLLBACK')]);
+}
+
+async function commitTransaction(masterConnection: any, slaveConnection: any) {
+  return Promise.all([pQuery(masterConnection, 'COMMIT'), pQuery(slaveConnection, 'COMMIT')]);
+}
+
+async function beginTransaction(masterConnection: any, slaveConnection: any) {
+  const promises: any[] = [];
+  if (isSqlite(masterConnection)) promises.push(pQuery(masterConnection, 'BEGIN TRANSACTION'));
+  else promises.push(pQuery(masterConnection, 'START TRANSACTION'));
+  if (isSqlite(slaveConnection)) promises.push(pQuery(slaveConnection, 'BEGIN TRANSACTION'));
+  else promises.push(pQuery(slaveConnection, 'START TRANSACTION'));
+  return Promise.all(promises);
 }
 
 function pQuery<T>(connection: sqlite3.Database, query: string, params?: any[]): Promise<T[]>;
