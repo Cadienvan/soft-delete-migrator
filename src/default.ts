@@ -8,5 +8,17 @@ export const defaultMigrateConfig: MigrateConfig = {
   migrateConditionParams: [],
   limit: 1000,
   chunkSize: 1000,
-  safeExecution: false
+  safeExecution: false,
+  onInsertedChunk: () => {
+    return;
+  },
+  onDeletedChunk: () => {
+    return;
+  },
+  onInsertedChunkError: (error: Error) => {
+    throw error;
+  },
+  onDeletedChunkError: (error: Error) => {
+    throw error;
+  }
 };

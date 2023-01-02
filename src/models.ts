@@ -32,6 +32,10 @@ export type MigrateConfig = {
   safeExecution: boolean;
   slaveSchema?: string;
   slaveTableName?: string;
+  onInsertedChunk: () => void;
+  onDeletedChunk: () => void;
+  onInsertedChunkError: (error: Error) => void;
+  onDeletedChunkError: (error: Error) => void;
 };
 
 export type InputMigrateConfig = {
@@ -46,4 +50,8 @@ export type InputMigrateConfig = {
   safeExecution?: boolean;
   slaveSchema?: string;
   slaveTableName?: string;
+  onInsertedChunk?: () => void;
+  onDeletedChunk?: () => void;
+  onInsertedChunkError?: (error: Error) => void;
+  onDeletedChunkError?: (error: Error) => void;
 };

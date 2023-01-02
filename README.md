@@ -28,7 +28,7 @@ npm test
 
 - [ ] Move console logs and errors to a logger passed as a parameter.
 - [x] saveQueriesToFile - Allow two different files to be saved depending on connections.
-- [ ] Events
+- [x] Events
 - [ ] Documentation
 - [ ] Tests
 - [ ] Integrity mechanism to check if primary keys exist both in master and slave table.

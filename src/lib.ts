@@ -93,8 +93,24 @@ export async function migrate<T>(
     }
 
     if (!config.safeExecution) {
-      await Promise.all(insertQueries.map((query) => pQuery(slaveConnection, query)));
-      await Promise.all(deleteQueries.map((query) => pQuery(masterConnection, query)));
+      await Promise.all(
+        insertQueries.map((query) =>
+          pQuery(slaveConnection, query)
+            .then(() => {
+              config.onInsertedChunk();
+            })
+            .catch(config.onInsertedChunkError)
+        )
+      );
+      await Promise.all(
+        deleteQueries.map((query) =>
+          pQuery(masterConnection, query)
+            .then(() => {
+              config.onDeletedChunk();
+            })
+            .catch(config.onDeletedChunkError)
+        )
+      );
     }
 
     await commitTransaction(masterConnection, slaveConnection);
