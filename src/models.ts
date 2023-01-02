@@ -31,3 +31,15 @@ export type MigrateConfig = {
   filePath?: string;
   safeExecution?: boolean;
 };
+
+export type InputMigrateConfig = {
+  schema?: string;
+  tableName: string;
+  softDeleteColumn?: string;
+  migrateCondition?: string;
+  migrateConditionParams?: any[];
+  limit?: number;
+  chunkSize?: number;
+  filePath?: string;
+  safeExecution?: boolean;
+};

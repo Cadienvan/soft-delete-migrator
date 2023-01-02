@@ -1,4 +1,5 @@
 import {
+  InputMigrateConfig,
   MigrateConfig,
   Mysql2Config,
   MysqlConfig,
@@ -18,9 +19,8 @@ import {
   getNewTableName,
   getTableName
 } from './internal';
+import { defaultMigrateConfig } from './default';
 
-// Do some function overload magic to get the correct type for the config
-// based on the client
 export function getConnection(client: 'sqlite3', config: Sqlite3Config): sqlite3.Database;
 export function getConnection(client: 'mysql', config: MysqlConfig): mysql.Connection;
 export function getConnection(client: 'mysql2', config: Mysql2Config): mysql2.Connection;
@@ -55,57 +55,62 @@ export function closeConnection(client: SupportedClient, connection: any): void 
 }
 
 export async function migrate<T>(
-  connection: SupportedConnection,
-  config: MigrateConfig,
-  migrationConnection: SupportedConnection = connection
+  masterConnection: SupportedConnection,
+  _config: InputMigrateConfig,
+  slaveConnection: SupportedConnection = masterConnection
 ): Promise<void> {
-  if (isSqlite(connection)) await pQuery(connection, 'BEGIN TRANSACTION');
-  else await pQuery(connection, 'START TRANSACTION');
-  if (isSqlite(migrationConnection)) await pQuery(migrationConnection, 'BEGIN TRANSACTION');
-  else await pQuery(migrationConnection, 'START TRANSACTION');
+  const config: MigrateConfig = {
+    ...defaultMigrateConfig,
+    ..._config
+  };
+
+  if (isSqlite(masterConnection)) await pQuery(masterConnection, 'BEGIN TRANSACTION');
+  else await pQuery(masterConnection, 'START TRANSACTION');
+  if (isSqlite(slaveConnection)) await pQuery(slaveConnection, 'BEGIN TRANSACTION');
+  else await pQuery(slaveConnection, 'START TRANSACTION');
 
   try {
-    const rowsToMove: T[] = await getRowsToMove<T>(config, connection);
+    const rowsToMove: T[] = await getRowsToMove<T>(config, masterConnection);
     if (rowsToMove.length === 0) {
       return;
     }
 
-    const primaryKeys = await detectPrimaryKeys(connection, config);
+    const primaryKeys = await detectPrimaryKeys(masterConnection, config);
 
-    await generateTableIfNecessary(config, connection, migrationConnection, primaryKeys);
+    await generateTableIfNecessary(config, masterConnection, slaveConnection, primaryKeys);
 
     const chunks = chunk(rowsToMove, config.chunkSize);
 
-    const insertQueries: string[] = generateInsertQueries<T>(chunks, config, primaryKeys, migrationConnection);
-    const deleteQueries: string[] = generateDeleteQueries<T>(chunks, config, primaryKeys, connection);
+    const insertQueries: string[] = generateInsertQueries<T>(chunks, config, primaryKeys, slaveConnection);
+    const deleteQueries: string[] = generateDeleteQueries<T>(chunks, config, primaryKeys, masterConnection);
 
     if (config.filePath) {
       try {
-        saveQueriesToFile(config.filePath, insertQueries, deleteQueries, connection);
+        saveQueriesToFile(config.filePath, insertQueries, deleteQueries, masterConnection);
       } catch (err) {
         console.error('Could not save queries to file', err);
       }
     }
 
     if (!config.safeExecution) {
-      await Promise.all(insertQueries.map((query) => pQuery(migrationConnection, query)));
-      await Promise.all(deleteQueries.map((query) => pQuery(connection, query)));
+      await Promise.all(insertQueries.map((query) => pQuery(slaveConnection, query)));
+      await Promise.all(deleteQueries.map((query) => pQuery(masterConnection, query)));
     }
 
-    await pQuery(connection, 'COMMIT');
-    await pQuery(migrationConnection, 'COMMIT');
+    await pQuery(masterConnection, 'COMMIT');
+    await pQuery(slaveConnection, 'COMMIT');
     return;
   } catch (err) {
-    await pQuery(connection, 'ROLLBACK');
-    await pQuery(migrationConnection, 'ROLLBACK');
+    await pQuery(masterConnection, 'ROLLBACK');
+    await pQuery(slaveConnection, 'ROLLBACK');
     throw err;
   }
 }
 
-export function pQuery<T>(connection: sqlite3.Database, query: string, params?: any[]): Promise<T[]>;
-export function pQuery<T>(connection: mysql.Connection, query: string, params?: any[]): Promise<T[]>;
-export function pQuery<T>(connection: mysql2.Connection, query: string, params?: any[]): Promise<T[]>;
-export function pQuery<T>(connection: any, query: string, params?: any[]): Promise<T[]> {
+function pQuery<T>(connection: sqlite3.Database, query: string, params?: any[]): Promise<T[]>;
+function pQuery<T>(connection: mysql.Connection, query: string, params?: any[]): Promise<T[]>;
+function pQuery<T>(connection: mysql2.Connection, query: string, params?: any[]): Promise<T[]>;
+function pQuery<T>(connection: any, query: string, params?: any[]): Promise<T[]> {
   query = query.trim();
   if (isSqlite(connection)) {
     return pQuerySqlite<T>(query, connection, params);
