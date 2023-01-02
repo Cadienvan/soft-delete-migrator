@@ -44,22 +44,25 @@ export function migrate(connection: mysql.Connection, config: MigrateConfig): Pr
 export function migrate(connection: mysql2.Connection, config: MigrateConfig): Promise<void>;
 export async function migrate<T>(connection: any, config: MigrateConfig): Promise<void> {
   // Start a transaction
-  await pQuery(connection, 'START TRANSACTION');
-  try {
-    const primaryKeys = await detectPrimaryKeys(connection, config);
+  if (isSqlite(connection)) await pQuery(connection, 'BEGIN TRANSACTION');
+  else await pQuery(connection, 'START TRANSACTION');
 
+  try {
     const rowsToMove: T[] = await getRowsToMove<T>(config, connection);
+    console.log(rowsToMove);
 
     if (rowsToMove.length === 0) {
       return;
     }
 
+    const primaryKeys = await detectPrimaryKeys(connection, config);
+
     await generateTableIfNecessary(config, connection, primaryKeys);
 
     const chunks = chunk(rowsToMove, config.chunkSize);
 
-    const insertQueries: string[] = generateInsertQueries<T>(chunks, config, primaryKeys);
-    const deleteQueries: string[] = generateDeleteQueries<T>(chunks, config, primaryKeys);
+    const insertQueries: string[] = generateInsertQueries<T>(chunks, config, primaryKeys, connection);
+    const deleteQueries: string[] = generateDeleteQueries<T>(chunks, config, primaryKeys, connection);
 
     if (config.filePath) {
       saveQueriesToFile(config.filePath, insertQueries, deleteQueries);
@@ -81,12 +84,12 @@ function saveQueriesToFile(filePath: string, insertQueries: string[], deleteQuer
   fs.writeFileSync(filePath, [...insertQueries, ...deleteQueries].join('\n'));
 }
 
-function generateDeleteQueries<T>(chunks: T[][], config: MigrateConfig, primaryKeys: string[]) {
+function generateDeleteQueries<T>(chunks: T[][], config: MigrateConfig, primaryKeys: string[], connection: any) {
   const deleteQueries: string[] = [];
   for (const chunk of chunks) {
     deleteQueries.push(
       `
-          DELETE FROM ${config.schema}.${config.tableName}
+          DELETE FROM ${getTableName(connection, config)}
           WHERE (${primaryKeys.join(', ')}) IN (${chunk
         .map((row) => {
           return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')})`;
@@ -97,12 +100,12 @@ function generateDeleteQueries<T>(chunks: T[][], config: MigrateConfig, primaryK
   return deleteQueries;
 }
 
-function generateInsertQueries<T>(chunks: T[][], config: MigrateConfig, primaryKeys: string[]) {
+function generateInsertQueries<T>(chunks: T[][], config: MigrateConfig, primaryKeys: string[], connection: any) {
   const insertQueries: string[] = [];
   for (const chunk of chunks) {
     insertQueries.push(
       `
-          INSERT INTO ${config.schema}._${config.tableName} (${primaryKeys.join(', ')}, ${
+          INSERT INTO ${getNewTableName(connection, config)} (${primaryKeys.join(', ')}, ${
         config.softDeleteColumn
       }, data)
           VALUES ${chunk
@@ -121,25 +124,54 @@ function generateInsertQueries<T>(chunks: T[][], config: MigrateConfig, primaryK
 }
 
 async function generateTableIfNecessary(config: MigrateConfig, connection: any, primaryKeys: string[]) {
+  if (isSqlite(connection)) {
+    await generateTableIfNecessarySqlite(config, connection, primaryKeys);
+  } else {
+    await generateTableIfNecessaryMysql(config, connection, primaryKeys);
+  }
+}
+
+async function generateTableIfNecessarySqlite(config: MigrateConfig, connection: any, primaryKeys: string[]) {
+  const tableExistsQ = `
+      SELECT COUNT(*) AS cnt
+      FROM sqlite_master
+      WHERE type='table' AND name='_${config.tableName}'
+    `;
+  const tableExists: number[] = await pQuery(connection, tableExistsQ);
+  if (tableExists[0]['cnt'] === 0) {
+    const createTableQ = `
+          CREATE TABLE ${getNewTableName(connection, config)} AS
+          SELECT ${primaryKeys.join(', ')}, ${config.softDeleteColumn}
+          FROM ${getTableName(connection, config)}
+          WHERE 1 = 0
+        `;
+    await pQuery(connection, createTableQ);
+    const alterTableQ = `
+              ALTER TABLE ${getNewTableName(connection, config)}
+              ADD COLUMN data JSON NULL
+            `;
+    await pQuery(connection, alterTableQ);
+  }
+}
+
+async function generateTableIfNecessaryMysql(config: MigrateConfig, connection: any, primaryKeys: string[]) {
   const tableExistsQ = `
       SELECT COUNT(*) AS cnt
       FROM information_schema.tables
       WHERE table_schema = '${config.schema}'
       AND table_name = '_${config.tableName}'
     `;
-
   const tableExists: number[] = await pQuery(connection, tableExistsQ);
   if (tableExists[0]['cnt'] === 0) {
     const createTableQ = `
-          CREATE TABLE ${config.schema}._${config.tableName} AS
+          CREATE TABLE ${getNewTableName(connection, config)} AS
           SELECT ${primaryKeys.join(', ')}, ${config.softDeleteColumn}
-          FROM ${config.schema}.${config.tableName}
+          FROM ${getTableName(connection, config)}
           WHERE 1 = 0
         `;
     await pQuery(connection, createTableQ);
-
     const alterTableQ = `
-              ALTER TABLE ${config.schema}._${config.tableName}
+              ALTER TABLE ${getNewTableName(connection, config)}
               ADD PRIMARY KEY (${primaryKeys.join(', ')}),
               ADD COLUMN data JSON NULL
             `;
@@ -150,7 +182,7 @@ async function generateTableIfNecessary(config: MigrateConfig, connection: any, 
 async function getRowsToMove<T>(config: MigrateConfig, connection: any) {
   const rowsToMoveQ = `
       SELECT *
-      FROM ${config.schema}.${config.tableName}
+      FROM ${getTableName(connection, config)}
       WHERE ${config.softDeleteColumn} IS NOT NULL AND (${config.migrateCondition})
       LIMIT ${config.limit}
     `;
@@ -172,11 +204,13 @@ export function pQuery<T>(connection: sqlite3.Database, query: string, params?: 
 export function pQuery<T>(connection: mysql.Connection, query: string, params?: any[]): Promise<T[]>;
 export function pQuery<T>(connection: mysql2.Connection, query: string, params?: any[]): Promise<T[]>;
 export function pQuery<T>(connection: any, query: string, params?: any[]): Promise<T[]> {
+  query = query.trim();
   console.log(query, params);
   return new Promise((resolve, reject) => {
-    if (connection.run) {
+    if (isSqlite(connection)) {
       if (query.toLowerCase().startsWith('select') || query.toLowerCase().startsWith('pragma')) {
         connection.all(query, params, (err, rows: T[]) => {
+          console.log('rows', rows, err, query, params);
           if (err) {
             reject(err);
           } else {
@@ -205,14 +239,15 @@ export function pQuery<T>(connection: any, query: string, params?: any[]): Promi
   });
 }
 
-function sanitizeDate(date: Date): string {
+function sanitizeDate(date: Date | string): string {
+  if (typeof date === 'string') return date;
   return date.toISOString().replace('T', ' ').replace('Z', '');
 }
 
 async function detectPrimaryKeys(connection: any, config: MigrateConfig): Promise<string[]> {
   let primaryKeysQ: string;
   let primaryKeys: { column_name: string }[];
-  if (connection.run) {
+  if (isSqlite(connection)) {
     primaryKeysQ = `
       PRAGMA table_info(${config.tableName})
     `;
@@ -228,4 +263,16 @@ async function detectPrimaryKeys(connection: any, config: MigrateConfig): Promis
     primaryKeys = await pQuery(connection, primaryKeysQ);
   }
   return primaryKeys.map((key) => key.column_name);
+}
+
+function isSqlite(connection: any): boolean {
+  return connection.run !== undefined;
+}
+
+function getTableName(connection: any, config: MigrateConfig): string {
+  return isSqlite(connection) ? config.tableName : `${config.schema}.${config.tableName}`;
+}
+
+function getNewTableName(connection: any, config: MigrateConfig): string {
+  return isSqlite(connection) ? `_${config.tableName}` : `${config.schema}._${config.tableName}`;
 }

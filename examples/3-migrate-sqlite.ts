@@ -6,7 +6,7 @@ migrate(conn, {
   tableName: 'users',
   softDeleteColumn: 'deleted_at',
   migrateCondition: 'deleted_at < ?',
-  migrateConditionParams: [1640991600],
+  migrateConditionParams: [1652220000],
   limit: 500,
   chunkSize: 10,
   filePath: './examples/soft-delete-test.sql',
