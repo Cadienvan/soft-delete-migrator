@@ -3,6 +3,14 @@ import * as sqlite3 from 'sqlite3';
 import * as mysql from 'mysql';
 import * as mysql2 from 'mysql2';
 import * as fs from 'fs';
+import {
+  isSqlite,
+  chunk,
+  generateInsertQueries,
+  generateDeleteQueries,
+  getNewTableName,
+  getTableName
+} from './internal';
 
 // Do some function overload magic to get the correct type for the config
 // based on the client
@@ -43,14 +51,11 @@ export function migrate(connection: sqlite3.Database, config: MigrateConfig): Pr
 export function migrate(connection: mysql.Connection, config: MigrateConfig): Promise<void>;
 export function migrate(connection: mysql2.Connection, config: MigrateConfig): Promise<void>;
 export async function migrate<T>(connection: any, config: MigrateConfig): Promise<void> {
-  // Start a transaction
   if (isSqlite(connection)) await pQuery(connection, 'BEGIN TRANSACTION');
   else await pQuery(connection, 'START TRANSACTION');
 
   try {
     const rowsToMove: T[] = await getRowsToMove<T>(config, connection);
-    console.log(rowsToMove);
-
     if (rowsToMove.length === 0) {
       return;
     }
@@ -65,13 +70,18 @@ export async function migrate<T>(connection: any, config: MigrateConfig): Promis
     const deleteQueries: string[] = generateDeleteQueries<T>(chunks, config, primaryKeys, connection);
 
     if (config.filePath) {
-      saveQueriesToFile(config.filePath, insertQueries, deleteQueries);
+      try {
+        saveQueriesToFile(config.filePath, insertQueries, deleteQueries, connection);
+      } catch (err) {
+        console.error('Could not save queries to file', err);
+      }
     }
 
     if (!config.safeExecution) {
       await Promise.all(insertQueries.map((query) => pQuery(connection, query)));
       await Promise.all(deleteQueries.map((query) => pQuery(connection, query)));
     }
+
     await pQuery(connection, 'COMMIT');
     return;
   } catch (err) {
@@ -80,47 +90,16 @@ export async function migrate<T>(connection: any, config: MigrateConfig): Promis
   }
 }
 
-function saveQueriesToFile(filePath: string, insertQueries: string[], deleteQueries: string[]) {
-  fs.writeFileSync(filePath, [...insertQueries, ...deleteQueries].join('\n'));
-}
-
-function generateDeleteQueries<T>(chunks: T[][], config: MigrateConfig, primaryKeys: string[], connection: any) {
-  const deleteQueries: string[] = [];
-  for (const chunk of chunks) {
-    deleteQueries.push(
-      `
-          DELETE FROM ${getTableName(connection, config)}
-          WHERE (${primaryKeys.join(', ')}) IN (${chunk
-        .map((row) => {
-          return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')})`;
-        })
-        .join(', ')});`.trim()
-    );
+export function pQuery<T>(connection: sqlite3.Database, query: string, params?: any[]): Promise<T[]>;
+export function pQuery<T>(connection: mysql.Connection, query: string, params?: any[]): Promise<T[]>;
+export function pQuery<T>(connection: mysql2.Connection, query: string, params?: any[]): Promise<T[]>;
+export function pQuery<T>(connection: any, query: string, params?: any[]): Promise<T[]> {
+  query = query.trim();
+  if (isSqlite(connection)) {
+    return pQuerySqlite<T>(query, connection, params);
+  } else {
+    return pQueryMysql<T>(connection, query, params);
   }
-  return deleteQueries;
-}
-
-function generateInsertQueries<T>(chunks: T[][], config: MigrateConfig, primaryKeys: string[], connection: any) {
-  const insertQueries: string[] = [];
-  for (const chunk of chunks) {
-    insertQueries.push(
-      `
-          INSERT INTO ${getNewTableName(connection, config)} (${primaryKeys.join(', ')}, ${
-        config.softDeleteColumn
-      }, data)
-          VALUES ${chunk
-            .map((row) => {
-              const data = Object.assign({}, row);
-              primaryKeys.forEach((key) => delete data[key]);
-              delete data[config.softDeleteColumn];
-              return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')}, '${sanitizeDate(
-                row[config.softDeleteColumn]
-              )}', '${JSON.stringify(data)}')`;
-            })
-            .join(', ')};`.trim()
-    );
-  }
-  return insertQueries;
 }
 
 async function generateTableIfNecessary(config: MigrateConfig, connection: any, primaryKeys: string[]) {
@@ -131,51 +110,61 @@ async function generateTableIfNecessary(config: MigrateConfig, connection: any, 
   }
 }
 
-async function generateTableIfNecessarySqlite(config: MigrateConfig, connection: any, primaryKeys: string[]) {
-  const tableExistsQ = `
-      SELECT COUNT(*) AS cnt
-      FROM sqlite_master
-      WHERE type='table' AND name='_${config.tableName}'
-    `;
+async function tableExists(connection: any, config: MigrateConfig) {
+  let tableExistsQ = `
+  SELECT COUNT(*) AS cnt
+  FROM information_schema.tables
+  WHERE table_schema = '${config.schema}'
+  AND table_name = '${getNewTableName(connection, config)}'
+`;
+  if (isSqlite(connection)) {
+    tableExistsQ = `
+    SELECT COUNT(*) AS cnt
+    FROM sqlite_master
+    WHERE type='table' AND name='${getNewTableName(connection, config)}'
+  `;
+  }
   const tableExists: number[] = await pQuery(connection, tableExistsQ);
-  if (tableExists[0]['cnt'] === 0) {
+  return tableExists[0]['cnt'] > 0;
+}
+
+async function generateTableIfNecessarySqlite(config: MigrateConfig, connection: any, primaryKeys: string[]) {
+  if (!(await tableExists(connection, config))) {
+    const columns = await detectSqliteColumnDefinitions(connection, config);
+    const columnsDefinition = columns
+      .filter((c) => primaryKeys.indexOf(c.name) !== -1)
+      .map((c) => `${c.name} ${c.type} ${c.notnull ? 'NOT NULL' : ''} ${c.dflt_value ? `DEFAULT ${c.dflt_value}` : ''}`)
+      .join(', ');
     const createTableQ = `
-          CREATE TABLE ${getNewTableName(connection, config)} AS
-          SELECT ${primaryKeys.join(', ')}, ${config.softDeleteColumn}
-          FROM ${getTableName(connection, config)}
-          WHERE 1 = 0
-        `;
+    CREATE TABLE ${getNewTableName(connection, config)} (
+      ${columnsDefinition},
+      ${config.softDeleteColumn} INTEGER,
+      data JSON NULL
+    )`;
     await pQuery(connection, createTableQ);
-    const alterTableQ = `
-              ALTER TABLE ${getNewTableName(connection, config)}
-              ADD COLUMN data JSON NULL
-            `;
-    await pQuery(connection, alterTableQ);
   }
 }
 
 async function generateTableIfNecessaryMysql(config: MigrateConfig, connection: any, primaryKeys: string[]) {
-  const tableExistsQ = `
-      SELECT COUNT(*) AS cnt
-      FROM information_schema.tables
-      WHERE table_schema = '${config.schema}'
-      AND table_name = '_${config.tableName}'
-    `;
-  const tableExists: number[] = await pQuery(connection, tableExistsQ);
-  if (tableExists[0]['cnt'] === 0) {
+  if (!(await tableExists(connection, config))) {
+    const columns = await detectMysqlColumnDefinitions(connection, config);
+    const columnsDefinition = columns
+      .filter((c) => primaryKeys.indexOf(c.column_name) !== -1)
+      .map(
+        (c) =>
+          `${c.column_name} ${c.column_type} ${c.is_nullable === 'NO' ? 'NOT NULL' : ''} ${
+            c.column_default ? `DEFAULT ${c.column_default}` : ''
+          }`
+      )
+      .join(', ');
     const createTableQ = `
-          CREATE TABLE ${getNewTableName(connection, config)} AS
-          SELECT ${primaryKeys.join(', ')}, ${config.softDeleteColumn}
-          FROM ${getTableName(connection, config)}
-          WHERE 1 = 0
+          CREATE TABLE ${getNewTableName(connection, config)} (
+            ${columnsDefinition},
+            ${config.softDeleteColumn} DATETIME,
+            data JSON NULL
+          )
         `;
     await pQuery(connection, createTableQ);
-    const alterTableQ = `
-              ALTER TABLE ${getNewTableName(connection, config)}
-              ADD PRIMARY KEY (${primaryKeys.join(', ')}),
-              ADD COLUMN data JSON NULL
-            `;
-    await pQuery(connection, alterTableQ);
   }
 }
 
@@ -191,57 +180,39 @@ async function getRowsToMove<T>(config: MigrateConfig, connection: any) {
   return rowsToMove;
 }
 
-// Chunk an array into chunks of a given size
-function chunk<T>(array: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
-  }
-  return chunks;
+function pQueryMysql<T>(connection: any, query: string, params: any[] | undefined): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    connection.query(query, params, (err, rows: T[]) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(rows);
+      }
+    });
+  });
 }
 
-export function pQuery<T>(connection: sqlite3.Database, query: string, params?: any[]): Promise<T[]>;
-export function pQuery<T>(connection: mysql.Connection, query: string, params?: any[]): Promise<T[]>;
-export function pQuery<T>(connection: mysql2.Connection, query: string, params?: any[]): Promise<T[]>;
-export function pQuery<T>(connection: any, query: string, params?: any[]): Promise<T[]> {
-  query = query.trim();
-  console.log(query, params);
+function pQuerySqlite<T>(query: string, connection: any, params: any[] | undefined): Promise<T[]> {
   return new Promise((resolve, reject) => {
-    if (isSqlite(connection)) {
-      if (query.toLowerCase().startsWith('select') || query.toLowerCase().startsWith('pragma')) {
-        connection.all(query, params, (err, rows: T[]) => {
-          console.log('rows', rows, err, query, params);
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows);
-          }
-        });
-      } else {
-        const stmt = connection.prepare(query);
-        stmt.run(params, (err) => {
-          if (err) {
-            reject(err);
-          }
-          resolve([]);
-        });
-        stmt.finalize();
-      }
-    } else {
-      connection.query(query, params, (err, rows: T[]) => {
+    if (query.toLowerCase().startsWith('select') || query.toLowerCase().startsWith('pragma')) {
+      connection.all(query, params, (err, rows: T[]) => {
         if (err) {
           reject(err);
         } else {
           resolve(rows);
         }
       });
+    } else {
+      const stmt = connection.prepare(query);
+      stmt.run(params, (err) => {
+        if (err) {
+          reject(err);
+        }
+        resolve([]);
+      });
+      stmt.finalize();
     }
   });
-}
-
-function sanitizeDate(date: Date | string): string {
-  if (typeof date === 'string') return date;
-  return date.toISOString().replace('T', ' ').replace('Z', '');
 }
 
 async function detectPrimaryKeys(connection: any, config: MigrateConfig): Promise<string[]> {
@@ -265,14 +236,79 @@ async function detectPrimaryKeys(connection: any, config: MigrateConfig): Promis
   return primaryKeys.map((key) => key.column_name);
 }
 
-function isSqlite(connection: any): boolean {
-  return connection.run !== undefined;
+async function detectSqliteColumnDefinitions(connection: any, config: MigrateConfig): Promise<any[]> {
+  const columnDefinitionsQ = `
+    PRAGMA table_info(${config.tableName})
+  `;
+  const columnDefinitions: { cid: number; name: string; type: string; notnull: 0 | 1; dflt_value: any; pk: 0 | 1 }[] =
+    await pQuery(connection, columnDefinitionsQ);
+  return columnDefinitions;
 }
 
-function getTableName(connection: any, config: MigrateConfig): string {
-  return isSqlite(connection) ? config.tableName : `${config.schema}.${config.tableName}`;
+async function detectMysqlColumnDefinitions(connection: any, config: MigrateConfig): Promise<any[]> {
+  const columnDefinitionsQ = `
+    SELECT column_name, column_type, is_nullable, column_default
+    FROM information_schema.columns
+    WHERE table_schema = '${config.schema}' AND table_name = '${config.tableName}'
+  `;
+  const columnDefinitions: { column_name: string; column_type: string; is_nullable: string; column_default: any }[] =
+    await pQuery(connection, columnDefinitionsQ);
+  return columnDefinitions;
 }
 
-function getNewTableName(connection: any, config: MigrateConfig): string {
-  return isSqlite(connection) ? `_${config.tableName}` : `${config.schema}._${config.tableName}`;
+function saveQueriesToFile(filePath: string, insertQueries: string[], deleteQueries: string[], connection: any) {
+  // If file exists, delete it
+  if (fs.existsSync(filePath)) {
+    fs.unlink(filePath, (err) => {
+      if (err) {
+        console.error('Error deleting file', err);
+      }
+      let beginTransactionCommand = 'START TRANSACTION;';
+      if (isSqlite(connection)) beginTransactionCommand = 'BEGIN TRANSACTION;';
+
+      // Write to file using streams. This is much faster than using fs.appendFileSync
+      // which is synchronous and will block the event loop.
+      const stream = fs.createWriteStream(filePath, { flags: 'w' });
+      stream.write('-- Soft delete migration\n');
+      stream.write('-- Generated at ' + new Date().toISOString() + '\n');
+      stream.write('--\n');
+      stream.write('-- This script will move all rows that have been soft deleted and move them into a new table.\n');
+      stream.write('--\n');
+      stream.write(
+        '-- To run this script, copy the contents of this file into a new file and run it against your database.\n'
+      );
+      stream.write('--\n');
+      stream.write('-- This script will not delete any data. It will only move it.\n');
+      stream.write('--\n');
+      stream.write('--\n');
+      stream.write('--\n');
+      stream.write('\n');
+      stream.write('\n');
+      stream.write('\n');
+      stream.write('-- Begin transaction\n');
+      stream.write(`${beginTransactionCommand}\n`);
+      stream.write('\n');
+      stream.write('-- Insert all rows that have been soft deleted into a new table\n');
+      stream.write('\n');
+      for (const insertQuery of insertQueries) {
+        stream.write(insertQuery);
+        stream.write(';\n');
+      }
+      stream.write('\n');
+      stream.write('\n');
+      stream.write('\n');
+      stream.write('-- Delete all rows that have been soft deleted from the original table\n');
+      stream.write('\n');
+      for (const deleteQuery of deleteQueries) {
+        stream.write(deleteQuery);
+        stream.write(';\n');
+      }
+      stream.write('\n');
+      stream.write('\n');
+      stream.write('\n');
+      stream.write('-- Commit transaction\n');
+      stream.write('COMMIT;\n');
+      stream.end();
+    });
+  }
 }
