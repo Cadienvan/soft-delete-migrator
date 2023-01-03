@@ -1,3 +1,9 @@
+#### 1.0.2 (2023-01-03)
+
+##### Chores
+
+*  linting ([e2f89066](https://github.com/Cadienvan/soft-delete-migrator/commit/e2f8906602e4bfb5554e127b8905913b0c04638b))
+
 #### 1.0.1 (2023-01-03)
 
 ##### Chores
