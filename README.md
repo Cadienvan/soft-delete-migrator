@@ -75,13 +75,26 @@ migrate(
 
 # API
 
-The library exposes a function: `migrate`.  
+### A little introduction
+
+When talking about a `master` database, we mean the database containing the table where the soft deleted rows will be migrated from.  
+When talking about a `slave` database, we mean the database containing the table where the soft deleted rows will be migrated to.  
+The `slave` database is optional. If not given, the library will create a table with the same name as the master table but with the `_` suffix and the given/default schema.  
+When talking about `migrateCondition`, we mean the condition to apply to the query to select the rows to migrate.  
+This condition will be applied while running the following query (An example of what the library does internally):
+```sql
+SELECT * FROM <schema>.<tableName> WHERE <softDeleteColumn> IS NOT NULL AND (<migrateCondition>) LIMIT <limit>
+```
+
+## migrate
+
+The library exposes a `migrate` function, which executes the migration process.  
 The function expects the following parameters:
 
-- `masterConnection`: The connection to the master database.  
+- `masterConnection`(_required_): The connection to the master database.  
   The connection must be an instance of the following classes: `mysql.Connection`, `mysql2.Connection`, `sqlite3.Database`.  
   The connection must be already connected as the library will not connect it.
-- `_config_`: An object containing the following properties:
+- `_config`(_required_): An object containing the following properties:
   - `tableName`(_required_): The name of the master table containing the soft deleted rows.
   - `schema`(_optional_): The schema containing the table to migrate.  
     Defaults to `public`.
@@ -112,8 +125,28 @@ The function expects the following parameters:
 - `slaveConnection`(_optional_): The connection to the slave database.  
   If not given, the library will use the `masterConnection` for both the master and the slave database.
 
+## Other functions
 
+The library also exposes two utility functions: `getConnection` and `closeConnection`.  
+The `getConnection` function expects the following parameters:
+- `client`: The client to use.  
+  Can be either `mysql`, `mysql2` or `sqlite`.
+- `config`: The configuration to use to create the connection.
+  - In case of `mysql` or `mysql2`, the configuration must be an instance of `mysql.ConnectionConfig` or `mysql2.ConnectionOptions`.
+  - In case of `sqlite`, the configuration must be a string containing the path to the SQLite database.
 
+# FAQ
+
+## How can you ensure data integrity?
+
+The library does all of its work in a transaction.  
+If the migration fails, the transaction is rolled back and the data is not migrated.  
+If the migration succeeds, the transaction is committed and the data is migrated.
+
+## How can you ensure that the migration is not executed twice?
+
+The library is idempotent in itself as it just considers the rows respecting the `migrateCondition`, if passed, or a simple `NOT NULL` condition on the `softDeleteColumn`.  
+If you want to ensure that the migration is not executed twice, you can use the `filePaths` configuration to save the queries necessary to execute the migration, set the `safeExecution` configuration to `true` and then execute them manually.
 
 # Tests
 
@@ -133,4 +166,3 @@ The SQLite instances are created in memory and do not need any configuration.
 - [ ] Try to understand if schema can be removed. Maybe tell dev to specify it or take from connection?
 - [ ] Documentation
 - [ ] Integrity mechanism to check if primary keys exist both in master and slave table.
-- [ ] Explain why it can't be done: export function getConnection(client: 'mysql', config: typeof mysql.Connection.constructor): mysql.Connection; (Because sqlite3 and mysql2 do not expose constructors)
