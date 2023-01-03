@@ -16,13 +16,9 @@ export const Mysql2Conn = getConnection('mysql2', {
   database: 'soft_delete_test'
 });
 
-export const SQLiteConn1 = getConnection('sqlite3', {
-  filename: ':memory:'
-});
+export const SQLiteConn1 = getConnection('sqlite3', ':memory:');
 
-export const SQLiteConn2 = getConnection('sqlite3', {
-  filename: ':memory:'
-});
+export const SQLiteConn2 = getConnection('sqlite3', ':memory:');
 
 export const masterTableName = 'softdeletetest';
 export const slaveTableName = 'slave';
