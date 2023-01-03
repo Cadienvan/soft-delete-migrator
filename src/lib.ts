@@ -1,8 +1,6 @@
 import {
   InputMigrateConfig,
   MigrateConfig,
-  Mysql2Config,
-  MysqlConfig,
   Sqlite3Config,
   SupportedClient,
   SupportedConnection
@@ -76,11 +74,7 @@ export async function migrate<T>(
     const deleteQueries: string[] = generateDeleteQueries<T>(chunks, config, primaryKeys, masterConnection);
 
     if (config.filePaths) {
-      try {
-        saveQueriesToFile(config.filePaths, insertQueries, deleteQueries, masterConnection, slaveConnection);
-      } catch (err) {
-        console.error('Could not save queries to file', err);
-      }
+      saveQueriesToFile(config.filePaths, insertQueries, deleteQueries, masterConnection, slaveConnection);
     }
 
     if (!config.safeExecution) {
