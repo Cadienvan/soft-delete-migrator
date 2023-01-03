@@ -31,7 +31,7 @@ export function generateInsertQueries<T>(
   for (const chunk of chunks) {
     insertQueries.push(
       `
-          INSERT INTO ${getNewTableName(connection, config)} (${primaryKeys.join(', ')}, ${
+          INSERT INTO ${getSlaveTableName(connection, config)} (${primaryKeys.join(', ')}, ${
         config.softDeleteColumn
       }, data)
           VALUES ${chunk
@@ -70,11 +70,11 @@ export function getTableName(connection: any, config: MigrateConfig): string {
   return isSqlite(connection) ? config.tableName : `${config.schema}.${config.tableName}`;
 }
 
-export function getNewTableName(connection: any, config: MigrateConfig): string {
+export function getSlaveTableName(connection: any, config: MigrateConfig): string {
   if (isSqlite(connection)) {
     return config.slaveTableName || `_${config.tableName}`;
   }
   return config.slaveTableName
-    ? `${config.slaveSchema}.${config.slaveTableName}`
+    ? `${config.slaveSchema || config.schema}.${config.slaveTableName}`
     : `${config.schema}._${config.tableName}`;
 }

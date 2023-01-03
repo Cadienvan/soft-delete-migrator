@@ -7,7 +7,7 @@ export const defaultMigrateConfig: MigrateConfig = {
   migrateCondition: '1=1',
   migrateConditionParams: [],
   limit: 1000,
-  chunkSize: 1000,
+  chunkSize: 100,
   safeExecution: false,
   closeConnectionOnFinish: false,
   onInsertedChunk: () => {

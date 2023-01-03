@@ -17,7 +17,7 @@ import {
   chunk,
   generateInsertQueries,
   generateDeleteQueries,
-  getNewTableName,
+  getSlaveTableName,
   getTableName
 } from './internal';
 import { defaultMigrateConfig } from './default';
@@ -158,7 +158,7 @@ async function generateTableIfNecessary(
   if (!(await tableExists(migrationConnection, config))) {
     const columnsDefinition = await getPrimaryKeyColumnsDefinitions(connection, config, primaryKeys);
 
-    const createTableQ = `CREATE TABLE ${getNewTableName(migrationConnection, config)} (
+    const createTableQ = `CREATE TABLE ${getSlaveTableName(migrationConnection, config)} (
     ${columnsDefinition},
     ${config.softDeleteColumn} ${isSqlite(migrationConnection) ? 'INTEGER' : 'DATETIME'},
     data JSON NULL
@@ -172,13 +172,13 @@ async function tableExists(connection: any, config: MigrateConfig) {
   SELECT COUNT(*) AS cnt
   FROM information_schema.tables
   WHERE table_schema = '${config.schema}'
-  AND table_name = '${getNewTableName(connection, config)}'
+  AND table_name = '${getSlaveTableName(connection, config)}'
 `;
   if (isSqlite(connection)) {
     tableExistsQ = `
     SELECT COUNT(*) AS cnt
     FROM sqlite_master
-    WHERE type='table' AND name='${getNewTableName(connection, config)}'
+    WHERE type='table' AND name='${getSlaveTableName(connection, config)}'
   `;
   }
   const tableExists: number[] = await pQuery(connection, tableExistsQ);
