@@ -137,6 +137,10 @@ The `getConnection` function expects the following parameters:
 
 # FAQ
 
+## Why do I need to specify the `schema`?
+
+The library uses the `schema` parameter to check, in case of MySql, if the table exists in the information schema tables.
+
 ## How can you ensure data integrity?
 
 The library does all of its work in a transaction.  
@@ -164,5 +168,5 @@ The SQLite instances are created in memory and do not need any configuration.
 # ToDo
 
 - [ ] Try to understand if schema can be removed. Maybe tell dev to specify it or take from connection?
-- [ ] Documentation
 - [ ] Integrity mechanism to check if primary keys exist both in master and slave table.
+- [ ] Add support for other databases. Maybe suggest a generic connection interface?
