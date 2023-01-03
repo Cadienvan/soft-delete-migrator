@@ -23,12 +23,12 @@ import {
 import { defaultMigrateConfig } from './default';
 
 export function getConnection(client: 'sqlite3', config: Sqlite3Config): sqlite3.Database;
-export function getConnection(client: 'mysql', config: MysqlConfig): mysql.Connection;
-export function getConnection(client: 'mysql2', config: Mysql2Config): mysql2.Connection;
+export function getConnection(client: 'mysql', config: mysql.ConnectionConfig): mysql.Connection;
+export function getConnection(client: 'mysql2', config: mysql2.ConnectionOptions): mysql2.Connection;
 export function getConnection(client: SupportedClient, config: any): any {
   switch (client) {
     case 'sqlite3':
-      return new sqlite3.Database(config.filename);
+      return new sqlite3.Database(config);
     case 'mysql':
       return mysql.createConnection(config);
     case 'mysql2':

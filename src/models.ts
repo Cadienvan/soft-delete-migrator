@@ -6,9 +6,7 @@ export type SupportedClient = 'sqlite3' | 'mysql' | 'mysql2';
 export type SupportedConnection = sqlite3.Database | mysql.Connection | mysql2.Connection;
 
 // Create a type for each supported client
-export type Sqlite3Config = {
-  filename: string;
-};
+export type Sqlite3Config = string
 
 export type MysqlConfig = {
   host: string;
