@@ -15,6 +15,30 @@ npm install soft-delete-migrator
 
 # How can I use it?
 
+## Use-case 1: Migrate soft deleted rows to a different database
+
+Given two variables, `mySqlConn` containing an active connection to a MySQL database and `sqliteConn` containing an active connection to a SQLite database, the following code will migrate all soft deleted rows from the `users` table of `mySqlConn` to the `users_deleted` table of `sqliteConn` considering all the deleted items prior to the 2022-12-31:
+
+```typescript
+import { migrate } from 'soft-delete-migrator';
+
+migrate(
+      mySqlConn,
+      {
+        tableName: 'users',
+        slaveTableName: 'users_deleted',
+        softDeleteColumn: 'deleted_at',
+        migrateCondition: 'deleted_at < ?',
+        migrateConditionParams: ['2022-12-31'],
+        limit: 500,
+        chunkSize: 10,
+        safeExecution: false,
+
+      },
+      SQLiteConn2
+    );
+
+
 @TODO
 # Tests
 
@@ -23,6 +47,11 @@ You can run the tests by using the following command:
 ```bash
 npm test
 ```
+
+As the tests are using a real database, you need to have a MySQL running on your machine.  
+You can configure the connection details in the `test/shared.ts` file.  
+The MySQL instance must have two schemas already created: `soft_delete_migrator` and `soft_delete_migrator_slave`.  
+The SQLite instances are created in memory and do not need any configuration.
 
 # ToDo
 
