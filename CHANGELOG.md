@@ -1,3 +1,9 @@
+#### 1.0.1 (2023-01-03)
+
+##### Chores
+
+*  fixed sqlite node-pre-gyp issue by forcing version ([bc5411ef](https://github.com/Cadienvan/soft-delete-migrator/commit/bc5411efc400b8d38ce420432f2928128ccc335f))
+
 ## 1.0.0 (2023-01-03)
 
 ##### Chores
