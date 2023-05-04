@@ -79,7 +79,7 @@ migrate(
 
 When talking about a `master` database, we mean the database containing the table where the soft deleted rows will be migrated from.  
 When talking about a `slave` database, we mean the database containing the table where the soft deleted rows will be migrated to.  
-The `slave` database is optional. If not given, the library will create a table with the same name as the master table but with the `_` suffix and the given/default schema.  
+The `slave` database is optional. If not given, the library will create a table with the same name as the master table but with the `_` prefix and the given/default schema.  
 When talking about `migrateCondition`, we mean the condition to apply to the query to select the rows to migrate.  
 This condition will be applied while running the following query (An example of what the library does internally):
 ```sql
@@ -114,7 +114,7 @@ The function expects the following parameters:
   - `slaveSchema`(_optional_): The schema containing the slave table.  
     Defaults to `undefined`.
   - `slaveTableName`(_optional_): The name of the slave table.  
-    Defaults to `undefined`. If not set, the library will use the `tableName` value with the `_` suffix and the given/default `schema`.
+    Defaults to `undefined`. If not set, the library will use the `tableName` value with the `_` prefix and the given/default `schema`.
   - `closeConnectionOnFinish`(_optional_): If set to `true`, the library will close the connection to the involved database(s) after the migration is completed.
   - `onInsertedChunk`(_optional_): A callback function to be called after each chunk of rows is inserted on the slave table.
   - `onDeletedChunk`(_optional_): A callback function to be called after each chunk of rows is deleted from the master table.
