@@ -2,7 +2,7 @@ import { getConnection } from '../src/lib';
 
 export const MysqlConn = getConnection('mysql', {
   host: 'localhost',
-  port: 10002,
+  port: 33306,
   user: 'root',
   password: 'root',
   database: 'soft_delete_test'
@@ -10,7 +10,7 @@ export const MysqlConn = getConnection('mysql', {
 
 export const Mysql2Conn = getConnection('mysql2', {
   host: 'localhost',
-  port: 10002,
+  port: 33306,
   user: 'root',
   password: 'root',
   database: 'soft_delete_test'
