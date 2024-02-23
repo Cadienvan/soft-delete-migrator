@@ -1,3 +1,18 @@
+### 1.1.0 (2024-02-23)
+
+##### Continuous Integration
+
+*  removed CI as jest wrongly presumes open handles ([25b4e7c1](https://github.com/Cadienvan/soft-delete-migrator/commit/25b4e7c1852642d57b5651171d681a79b2bdd025))
+*  Added Node CI ([20a59d6b](https://github.com/Cadienvan/soft-delete-migrator/commit/20a59d6b30a0a277b5d6cc21b2b3ca4bc6e1f2f8))
+
+##### Documentation Changes
+
+*  Update README.md ([bf4233be](https://github.com/Cadienvan/soft-delete-migrator/commit/bf4233be40031a882f7da0708dccc163ba4b7a46))
+
+##### New Features
+
+*  updating all dependencies ([7cb921df](https://github.com/Cadienvan/soft-delete-migrator/commit/7cb921dfb0017db085f0b2ac4df5cab45f03cd22))
+
 #### 1.0.2 (2023-01-03)
 
 ##### Chores
