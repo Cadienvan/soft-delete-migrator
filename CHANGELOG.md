@@ -1,3 +1,9 @@
+#### 1.1.2 (2024-02-23)
+
+##### Bug Fixes
+
+*  getSlaveTableName ([54fbf902](https://github.com/Cadienvan/soft-delete-migrator/commit/54fbf90296bbf03a146bb7112b47643638f41a2a))
+
 #### 1.1.1 (2024-02-23)
 
 ##### Chores
