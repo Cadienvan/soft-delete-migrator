@@ -1,3 +1,11 @@
+#### 1.1.1 (2024-02-23)
+
+##### Chores
+
+*  trying to make sqlite3 work ([de9082a0](https://github.com/Cadienvan/soft-delete-migrator/commit/de9082a0e639af9b6375098a5678e496242e5446))
+*  reverting sqlite3 ver ([5d461b00](https://github.com/Cadienvan/soft-delete-migrator/commit/5d461b00f8875e59bcc0f5a651ebe31bb0710003))
+*  prettier ([87a5aa88](https://github.com/Cadienvan/soft-delete-migrator/commit/87a5aa8831c6c379aba27d05f2f6e324055f7992))
+
 ### 1.1.0 (2024-02-23)
 
 ##### Continuous Integration
