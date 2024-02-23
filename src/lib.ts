@@ -1,10 +1,4 @@
-import {
-  InputMigrateConfig,
-  MigrateConfig,
-  Sqlite3Config,
-  SupportedClient,
-  SupportedConnection
-} from './models';
+import { InputMigrateConfig, MigrateConfig, Sqlite3Config, SupportedClient, SupportedConnection } from './models';
 import * as sqlite3 from 'sqlite3';
 import * as mysql from 'mysql';
 import * as mysql2 from 'mysql2';

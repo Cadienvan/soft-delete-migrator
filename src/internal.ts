@@ -12,10 +12,10 @@ export function generateDeleteQueries<T>(
       `
           DELETE FROM ${getTableName(connection, config)}
           WHERE (${primaryKeys.join(', ')}) IN (${chunk
-        .map((row) => {
-          return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')})`;
-        })
-        .join(', ')});`.trim()
+            .map((row) => {
+              return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')})`;
+            })
+            .join(', ')});`.trim()
     );
   }
   return deleteQueries;
@@ -32,8 +32,8 @@ export function generateInsertQueries<T>(
     insertQueries.push(
       `
           INSERT INTO ${getSlaveTableName(connection, config)} (${primaryKeys.join(', ')}, ${
-        config.softDeleteColumn
-      }, data)
+            config.softDeleteColumn
+          }, data)
           VALUES ${chunk
             .map((row) => {
               const data = Object.assign({}, row);
