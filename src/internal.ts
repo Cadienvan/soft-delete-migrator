@@ -72,9 +72,9 @@ export function getTableName(connection: any, config: MigrateConfig): string {
 
 export function getSlaveTableName(connection: any, config: MigrateConfig): string {
   if (isSqlite(connection)) {
-    return config.slaveTableName || `_${config.tableName}`;
+    return config.slaveTableName ?? `_${config.tableName}`;
   }
   return config.slaveTableName
-    ? `${config.slaveSchema || config.schema}.${config.slaveTableName}`
+    ? `${config.slaveSchema ?? config.schema}.${config.slaveTableName}`
     : `${config.schema}._${config.tableName}`;
 }
