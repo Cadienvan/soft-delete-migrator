@@ -1,3 +1,9 @@
+### 1.4.0 (2024-02-26)
+
+##### New Features
+
+*  autoRecoveryOnMappingError + better docs ([0b2868d5](https://github.com/Cadienvan/soft-delete-migrator/commit/0b2868d5dfafd88558328c4fe2734b5a7302953d))
+
 ### 1.3.0 (2024-02-26)
 
 ##### New Features
