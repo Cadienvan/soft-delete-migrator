@@ -80,10 +80,14 @@ migrate(
 When talking about a `master` database, we mean the database containing the table where the soft deleted rows will be migrated from.  
 When talking about a `slave` database, we mean the database containing the table where the soft deleted rows will be migrated to.  
 The `slave` database is optional. If not given, the library will create a table with the same name as the master table but with the `_` prefix and the given/default schema.  
-When talking about `migrateCondition`, we mean the condition to apply to the query to select the rows to migrate.  
-This condition will be applied while running the following query (An example of what the library does internally):
+This is similar to what the library does internally:
 ```sql
-SELECT * FROM <schema>.<tableName> WHERE <softDeleteColumn> IS NOT NULL AND (<migrateCondition>) LIMIT <limit>
+SELECT * FROM <schema>.<tableName> WHERE <softDeleteColumn> IS NOT NULL LIMIT <limit>
+```
+When talking about `migrateCondition`, we mean the condition to apply to the query to select the rows to migrate.  
+This condition will substitute the default one. Here's an example of what the library does internally:
+```sql
+SELECT * FROM <schema>.<tableName> WHERE <migrateCondition> LIMIT <limit>
 ```
 
 ## migrate
@@ -100,7 +104,7 @@ The function expects the following parameters:
     Defaults to `public`.
   - `softDeleteColumn`(_optional_): The name of the column containing the soft delete datetime(MySQL) or timestamp (Sqlite).  
     Defaults to `deleted_at`.
-  - `migrateCondition`(_optional_): The additional condition to apply to the query to select the rows to migrate. 
+  - `migrateCondition`(_optional_): The condition to apply to the query to select the rows to migrate. This substitutes the `WHERE` clause in the query, ignoring the `softDeleteColumn` value. It supports the `?` placeholder for parameters passed in `migrateConditionParams`.
     Defaults to `1=1`.
   - `migrateConditionParams`(_optional_): The parameters to use in the `migrateCondition` query.
   - `limit`(_optional_): The maximum number of rows to migrate.  
@@ -151,7 +155,7 @@ If the migration succeeds, the transaction is committed and the data is migrated
 
 ## How can you ensure that the migration is not executed twice?
 
-The library is idempotent in itself as it just considers the rows respecting the `NOT NULL` value of the `softDeleteColumn` and also the `migrateCondition`, if passed.  
+The library is idempotent in itself as it just considers the rows respecting the `NOT NULL` value of the `softDeleteColumn` or the `migrateCondition`, if passed.  
 If you want to ensure that the migration is not executed twice, you can use the `filePaths` configuration to save the queries necessary to execute the migration, set the `safeExecution` configuration to `true` and then execute them manually.
 
 # Tests
@@ -172,3 +176,4 @@ The SQLite instances are created in memory and do not need any configuration.
 - [ ] Try to understand if schema can be removed. Maybe tell dev to specify it or take from connection?
 - [ ] Integrity mechanism to check if primary keys exist both in master and slave table.
 - [ ] Add support for other databases. Maybe suggest a generic connection interface?
+- [ ] Refactor using adapters.
