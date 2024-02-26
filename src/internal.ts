@@ -287,8 +287,22 @@ export async function saveQueriesToFile(
   slaveConnection: SupportedConnection
 ) {
   // If files exists, delete them
-  await fsPromises.unlink(filePaths[0]);
-  await fsPromises.unlink(filePaths[1]);
+  if (
+    await fsPromises
+      .access(filePaths[0])
+      .then(() => true)
+      .catch(() => false)
+  ) {
+    await fsPromises.unlink(filePaths[0]);
+  }
+  if (
+    await fsPromises
+      .access(filePaths[1])
+      .then(() => true)
+      .catch(() => false)
+  ) {
+    await fsPromises.unlink(filePaths[1]);
+  }
 
   let masterFileContent = ``;
   let slaveFileContent = ``;
