@@ -2,7 +2,7 @@
   "name": "soft-delete-migrator",
   "description": "A library providing a simple way of accessing a database and moving soft deleted rows to automatically generated tables and prevent performance erosion.",
   "private": false,
-  "version": "1.2.0",
+  "version": "1.2.1",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
