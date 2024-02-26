@@ -45,6 +45,8 @@ describe('migrate', () => {
     const softDeletedCount = (
       await pQuery(SQLiteConn1, `SELECT id FROM ${masterTableName} WHERE deleted_at IS NOT NULL`, [])
     ).length;
+
+    console.log('SOFTAAAA', softDeletedCount);
     // Migrate the soft deleted rows
     await migrate(SQLiteConn1, {
       tableName: masterTableName,
@@ -56,7 +58,7 @@ describe('migrate', () => {
     });
 
     // Check the results
-    const results = await pQuery(SQLiteConn1, `SELECT id FROM slave`, []);
+    const results = await pQuery(SQLiteConn1, `SELECT id FROM ${slaveTableName}`, []);
 
     await dropTable(SQLiteConn1, masterTableName);
 

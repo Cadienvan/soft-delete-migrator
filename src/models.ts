@@ -21,9 +21,9 @@ export type Mysql2Config = MysqlConfig;
 export type MigrateConfig = {
   schema: string;
   tableName: string;
-  softDeleteColumn: string;
-  migrateCondition: string;
-  migrateConditionParams: any[];
+  softDeleteColumn?: string;
+  migrateCondition?: string;
+  migrateConditionParams?: any[];
   limit: number;
   chunkSize: number;
   filePaths?: string[];

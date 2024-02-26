@@ -35,28 +35,19 @@ export function generateInsertQueries<T>(
   for (const chunk of chunks) {
     insertQueries.push(
       `
-          INSERT INTO ${getSlaveTableNameWithSchema(connection, config)} (${primaryKeys.join(', ')}, ${
-            config.softDeleteColumn
-          }, data)
+          INSERT INTO ${getSlaveTableNameWithSchema(connection, config)} (${primaryKeys.join(', ')}, data)
           VALUES ${chunk
             .map((row) => {
               const data = Object.assign({}, row);
               primaryKeys.forEach((key) => delete data[key]);
-              delete data[config.softDeleteColumn];
               try {
-                return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')}, '${sanitizeDate(
-                  row[config.softDeleteColumn]
-                )}', '${btoa(JSON.stringify(data))}')`;
+                return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')}, '${btoa(JSON.stringify(data))}')`;
               } catch (e) {
                 if (config.autoRecoveryOnMappingError) {
                   try {
-                    return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')}, '${sanitizeDate(
-                      row[config.softDeleteColumn]
-                    )}', '${JSON.stringify(data)}')`;
+                    return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')}, '${JSON.stringify(data)}')`;
                   } catch (e) {
-                    return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')}, '${sanitizeDate(
-                      row[config.softDeleteColumn]
-                    )}', '')`;
+                    return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')}, '')`;
                   }
                 } else {
                   throw e;
@@ -149,7 +140,6 @@ export async function generateTableIfNecessary(
 
     const createTableQ = `CREATE TABLE ${getSlaveTableNameWithSchema(migrationConnection, config)} (
     ${columnsDefinition},
-    ${config.softDeleteColumn} ${isSqlite(migrationConnection) ? 'INTEGER' : 'DATETIME'},
     data LONGBLOB NULL
   )`;
 
@@ -184,11 +174,11 @@ export async function getRowsToMove<T>(config: MigrateConfig, connection: any) {
   const rowsToMoveQ = `
       SELECT ${config.columns.join(', ')}
       FROM ${getTableName(connection, config)}
-      WHERE ${config.softDeleteColumn} IS NOT NULL AND (${config.migrateCondition})
+      WHERE ${config.migrateCondition ?? `${config.softDeleteColumn} IS NOT NULL`}
       LIMIT ${config.limit}
     `;
 
-  const rowsToMove: T[] = await pQuery(connection, rowsToMoveQ, config.migrateConditionParams);
+  const rowsToMove: T[] = await pQuery(connection, rowsToMoveQ, config.migrateConditionParams ?? []);
   return rowsToMove;
 }
 
