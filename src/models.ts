@@ -31,6 +31,7 @@ export type MigrateConfig = {
   slaveSchema?: string;
   slaveTableName?: string;
   closeConnectionOnFinish: boolean;
+  columns: string[];
   onInsertedChunk: () => void;
   onDeletedChunk: () => void;
   onInsertedChunkError: (error: Error) => void;
@@ -50,6 +51,7 @@ export type InputMigrateConfig = {
   slaveSchema?: string;
   slaveTableName?: string;
   closeConnectionOnFinish?: boolean;
+  columns?: string[];
   onInsertedChunk?: () => void;
   onDeletedChunk?: () => void;
   onInsertedChunkError?: (error: Error) => void;

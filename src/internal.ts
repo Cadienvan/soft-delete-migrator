@@ -35,7 +35,7 @@ export function generateInsertQueries<T>(
   for (const chunk of chunks) {
     insertQueries.push(
       `
-          INSERT INTO ${getSlaveTableName(connection, config)} (${primaryKeys.join(', ')}, ${
+          INSERT INTO ${getSlaveTableNameWithSchema(connection, config)} (${primaryKeys.join(', ')}, ${
             config.softDeleteColumn
           }, data)
           VALUES ${chunk
@@ -45,7 +45,7 @@ export function generateInsertQueries<T>(
               delete data[config.softDeleteColumn];
               return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')}, '${sanitizeDate(
                 row[config.softDeleteColumn]
-              )}', '${JSON.stringify(data)}')`;
+              )}', '${btoa(JSON.stringify(data))}')`;
             })
             .join(', ')};`.trim()
     );
@@ -75,6 +75,10 @@ export function getTableName(connection: any, config: MigrateConfig): string {
 }
 
 export function getSlaveTableName(connection: any, config: MigrateConfig): string {
+  return config.slaveTableName ?? `_${config.tableName}`;
+}
+
+export function getSlaveTableNameWithSchema(connection: any, config: MigrateConfig): string {
   if (isSqlite(connection)) {
     return config.slaveTableName ?? `_${config.tableName}`;
   }
@@ -127,10 +131,10 @@ export async function generateTableIfNecessary(
   if (!doesTableExist || onlyReturnQuery) {
     const columnsDefinition = await getPrimaryKeyColumnsDefinitions(connection, config, primaryKeys);
 
-    const createTableQ = `CREATE TABLE ${getSlaveTableName(migrationConnection, config)} (
+    const createTableQ = `CREATE TABLE ${getSlaveTableNameWithSchema(migrationConnection, config)} (
     ${columnsDefinition},
     ${config.softDeleteColumn} ${isSqlite(migrationConnection) ? 'INTEGER' : 'DATETIME'},
-    data JSON NULL
+    data LONGBLOB NULL
   )`;
 
     if (!doesTableExist && !onlyReturnQuery) {
@@ -145,9 +149,10 @@ export async function tableExists(connection: any, config: MigrateConfig) {
   let tableExistsQ = `
   SELECT COUNT(*) AS cnt
   FROM information_schema.tables
-  WHERE table_schema = '${config.schema}'
+  WHERE table_schema = '${config.slaveSchema ?? config.schema}'
   AND table_name = '${getSlaveTableName(connection, config)}'
 `;
+
   if (isSqlite(connection)) {
     tableExistsQ = `
     SELECT COUNT(*) AS cnt
@@ -161,7 +166,7 @@ export async function tableExists(connection: any, config: MigrateConfig) {
 
 export async function getRowsToMove<T>(config: MigrateConfig, connection: any) {
   const rowsToMoveQ = `
-      SELECT *
+      SELECT ${config.columns.join(', ')}
       FROM ${getTableName(connection, config)}
       WHERE ${config.softDeleteColumn} IS NOT NULL AND (${config.migrateCondition})
       LIMIT ${config.limit}

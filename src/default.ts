@@ -10,6 +10,7 @@ export const defaultMigrateConfig: MigrateConfig = {
   chunkSize: 100,
   safeExecution: false,
   closeConnectionOnFinish: false,
+  columns: ['*'],
   onInsertedChunk: () => {
     return;
   },

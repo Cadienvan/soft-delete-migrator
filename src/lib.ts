@@ -81,7 +81,14 @@ export async function migrate<T>(
     const deleteQueries: string[] = generateDeleteQueries<T>(chunks, config, primaryKeys, masterConnection);
 
     if (config.filePaths) {
-      saveQueriesToFile(config.filePaths, insertQueries, deleteQueries, createQuery, masterConnection, slaveConnection);
+      await saveQueriesToFile(
+        config.filePaths,
+        insertQueries,
+        deleteQueries,
+        createQuery,
+        masterConnection,
+        slaveConnection
+      );
     }
 
     if (!config.safeExecution) {
