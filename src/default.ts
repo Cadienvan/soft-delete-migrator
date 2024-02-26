@@ -11,6 +11,7 @@ export const defaultMigrateConfig: MigrateConfig = {
   safeExecution: false,
   closeConnectionOnFinish: false,
   columns: ['*'],
+  autoRecoveryOnMappingError: false,
   onInsertedChunk: () => {
     return;
   },

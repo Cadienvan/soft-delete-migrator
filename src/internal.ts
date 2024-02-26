@@ -43,9 +43,25 @@ export function generateInsertQueries<T>(
               const data = Object.assign({}, row);
               primaryKeys.forEach((key) => delete data[key]);
               delete data[config.softDeleteColumn];
-              return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')}, '${sanitizeDate(
-                row[config.softDeleteColumn]
-              )}', '${btoa(JSON.stringify(data))}')`;
+              try {
+                return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')}, '${sanitizeDate(
+                  row[config.softDeleteColumn]
+                )}', '${btoa(JSON.stringify(data))}')`;
+              } catch (e) {
+                if (config.autoRecoveryOnMappingError) {
+                  try {
+                    return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')}, '${sanitizeDate(
+                      row[config.softDeleteColumn]
+                    )}', '${JSON.stringify(data)}')`;
+                  } catch (e) {
+                    return `(${primaryKeys.map((key) => `'${row[key]}'`).join(', ')}, '${sanitizeDate(
+                      row[config.softDeleteColumn]
+                    )}', '')`;
+                  }
+                } else {
+                  throw e;
+                }
+              }
             })
             .join(', ')};`.trim()
     );
@@ -343,7 +359,7 @@ export async function saveQueriesToFile(
   slaveFileContent += ';\n';
   for (const insertQuery of insertQueries) {
     slaveFileContent += insertQuery;
-    slaveFileContent += ';\n';
+    slaveFileContent += '\n';
   }
   slaveFileContent += '\n';
   slaveFileContent += '\n';
@@ -353,7 +369,7 @@ export async function saveQueriesToFile(
   masterFileContent += '\n';
   for (const deleteQuery of deleteQueries) {
     masterFileContent += deleteQuery;
-    masterFileContent += ';\n';
+    masterFileContent += '\n';
   }
   masterFileContent += '\n';
   masterFileContent += '\n';

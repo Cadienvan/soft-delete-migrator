@@ -32,6 +32,7 @@ export type MigrateConfig = {
   slaveTableName?: string;
   closeConnectionOnFinish: boolean;
   columns: string[];
+  autoRecoveryOnMappingError: boolean;
   onInsertedChunk: () => void;
   onDeletedChunk: () => void;
   onInsertedChunkError: (error: Error) => void;
@@ -52,8 +53,10 @@ export type InputMigrateConfig = {
   slaveTableName?: string;
   closeConnectionOnFinish?: boolean;
   columns?: string[];
+  autoRecoveryOnMappingError?: boolean;
   onInsertedChunk?: () => void;
   onDeletedChunk?: () => void;
   onInsertedChunkError?: (error: Error) => void;
   onDeletedChunkError?: (error: Error) => void;
+  onMappedRowError?: (error: Error) => void;
 };

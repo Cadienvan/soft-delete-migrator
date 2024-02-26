@@ -100,7 +100,7 @@ The function expects the following parameters:
     Defaults to `public`.
   - `softDeleteColumn`(_optional_): The name of the column containing the soft delete datetime(MySQL) or timestamp (Sqlite).  
     Defaults to `deleted_at`.
-  - `migrateCondition`(_optional_): The condition to apply to the query to select the rows to migrate. 
+  - `migrateCondition`(_optional_): The additional condition to apply to the query to select the rows to migrate. 
     Defaults to `1=1`.
   - `migrateConditionParams`(_optional_): The parameters to use in the `migrateCondition` query.
   - `limit`(_optional_): The maximum number of rows to migrate.  
@@ -108,14 +108,16 @@ The function expects the following parameters:
   - `chunkSize`(_optional_): The number of rows to migrate at a time.  
     Defaults to `100`.
   - `filePaths`(_optional_): An array containing two file paths.  
-    The first file path is the path used to save the queries necessary for the `DELETE` queries to launch on the master instance.  
-    The second file path is the path used to save the queries necessary for the `INSERT` queries to launch on the slave instance.
-  - `safeExecution`(_optional_): If set to `true`, the library will not execute the `DELETE` and `INSERT` queries but just write them to the `filePaths`, if given.  
+    The first file path is the path used to save the queries necessary for the `master` instance.  
+    The second file path is the path used to save the queries necessary for the `slave` instance.
+  - `safeExecution`(_optional_): If set to `true`, the library will not execute the queries but will just write them to the `filePaths`, if given.  
   - `slaveSchema`(_optional_): The schema containing the slave table.  
-    Defaults to `undefined`.
+    Defaults to `undefined`. If not set, the library will use the `schema` value.
   - `slaveTableName`(_optional_): The name of the slave table.  
     Defaults to `undefined`. If not set, the library will use the `tableName` value with the `_` prefix and the given/default `schema`.
   - `closeConnectionOnFinish`(_optional_): If set to `true`, the library will close the connection to the involved database(s) after the migration is completed.
+  - `autoRecoveryOnMappingError`(_optional_): Usually, the library does a base64 encoding of the JSON stringification of all non-primary fields (All of them or just the passed `columns`). In case of error with any of those two processes, the library will throw an error. If set to `true`, in case of encoding error, the library will try to recover the data by mapping the fields only using the JSON stringification. In case of error in this phase, the library will save an empty string.
+    Defaults to `false`.
   - `onInsertedChunk`(_optional_): A callback function to be called after each chunk of rows is inserted on the slave table.
   - `onDeletedChunk`(_optional_): A callback function to be called after each chunk of rows is deleted from the master table.
   - `onInsertedChunkError`(_optional_): A callback function to be called after each chunk of rows fails to be inserted on the slave table.  
@@ -149,7 +151,7 @@ If the migration succeeds, the transaction is committed and the data is migrated
 
 ## How can you ensure that the migration is not executed twice?
 
-The library is idempotent in itself as it just considers the rows respecting the `migrateCondition`, if passed, or a simple `NOT NULL` condition on the `softDeleteColumn`.  
+The library is idempotent in itself as it just considers the rows respecting the `NOT NULL` value of the `softDeleteColumn` and also the `migrateCondition`, if passed.  
 If you want to ensure that the migration is not executed twice, you can use the `filePaths` configuration to save the queries necessary to execute the migration, set the `safeExecution` configuration to `true` and then execute them manually.
 
 # Tests
