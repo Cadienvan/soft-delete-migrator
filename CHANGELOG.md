@@ -1,3 +1,13 @@
+## 2.0.0 (2024-02-26)
+
+##### Documentation Changes
+
+*  aligned doc with new behaviour ([3bfdc80f](https://github.com/Cadienvan/soft-delete-migrator/commit/3bfdc80fbff7dc94baa42f44fea879b5820c539c))
+
+##### New Features
+
+*  moving from soft delete + condition to one or another ([46c03083](https://github.com/Cadienvan/soft-delete-migrator/commit/46c03083250eed46b0f8c14cd4d5d04c60a88e79))
+
 ### 1.4.0 (2024-02-26)
 
 ##### New Features
