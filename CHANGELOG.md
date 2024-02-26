@@ -1,3 +1,9 @@
+### 1.2.0 (2024-02-26)
+
+##### New Features
+
+*  table is created only if not in safeExecution + refactor ([6b8f230d](https://github.com/Cadienvan/soft-delete-migrator/commit/6b8f230daae7c9ddb096d74032170d12be04d403))
+
 #### 1.1.2 (2024-02-23)
 
 ##### Bug Fixes
