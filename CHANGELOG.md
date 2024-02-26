@@ -1,3 +1,9 @@
+### 1.3.0 (2024-02-26)
+
+##### New Features
+
+*  moving from json to blob + added column definition ([539a8764](https://github.com/Cadienvan/soft-delete-migrator/commit/539a8764e46a193b4e94ad7d8e0dabc4db4857cb))
+
 #### 1.2.1 (2024-02-26)
 
 ##### Chores
