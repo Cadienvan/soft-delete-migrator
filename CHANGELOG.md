@@ -1,3 +1,9 @@
+#### 1.2.1 (2024-02-26)
+
+##### Chores
+
+*  unlink now checks for file existence ([ef3f0661](https://github.com/Cadienvan/soft-delete-migrator/commit/ef3f0661a2830eb14dd8e684a3ccf946884c5948))
+
 ### 1.2.0 (2024-02-26)
 
 ##### New Features
